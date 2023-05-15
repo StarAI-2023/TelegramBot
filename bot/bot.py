@@ -19,6 +19,7 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     BotCommand,
+    LabeledPrice,
 )
 from telegram.ext import (
     Application,
@@ -29,6 +30,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     AIORateLimiter,
     filters,
+    PreCheckoutQueryHandler,
 )
 from telegram.constants import ParseMode, ChatAction
 
@@ -52,6 +54,7 @@ HELP_MESSAGE = """Commands:
 ⚪ /settings – Show settings
 ⚪ /balance – Show balance
 ⚪ /help – Show help
+⚪ /deposit – Add credits to you account
 
 🎨 Generate images from text prompts in <b>👩‍🎨 Artist</b> /mode
 👥 Add bot to <b>group chat</b>: /help_group_chat
@@ -137,6 +140,16 @@ async def is_bot_mentioned(update: Update, context: CallbackContext):
     else:
         return False
 
+async def deposit_handle(update: Update, context: CallbackContext):
+    await context.bot.sendInvoice(update.message.chat_id,title = "shit",description="fuck you bitch",payload = "unique",provider_token="284685063:TEST:YmNmOWY5NTRiMGYx",currency="USD",prices=[LabeledPrice(label="pay mtf",amount=100)])
+
+async def pre_checkout_query_handle(update: Update, context: CallbackContext):
+    query = update.pre_checkout_query
+    await context.bot.answer_pre_checkout_query(query.id, True)
+
+async def successful_payment_handle(update: Update, context: CallbackContext):
+    successful_payment = update.message.successful_payment
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Thanks for your purchase!")
 
 async def start_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
@@ -147,7 +160,6 @@ async def start_handle(update: Update, context: CallbackContext):
 
     reply_text = "Hey <b>Pokimane</b> here, how are you doing?\n\n"
     reply_text += HELP_MESSAGE
-
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
     await show_chat_modes_handle(update, context)
 
@@ -866,6 +878,12 @@ def run_bot() -> None:
         user_filter = filters.User(username=usernames) | filters.User(user_id=user_ids)
 
     application.add_handler(CommandHandler("start", start_handle, filters=user_filter))
+
+
+    application.add_handler(CommandHandler("deposit", deposit_handle, filters=user_filter))
+    application.add_handler(PreCheckoutQueryHandler(pre_checkout_query_handle))
+    # application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handle))
+
     application.add_handler(CommandHandler("help", help_handle, filters=user_filter))
     application.add_handler(
         CommandHandler("help_group_chat", help_group_chat_handle, filters=user_filter)
