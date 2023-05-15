@@ -9,6 +9,7 @@ import pydub
 from pathlib import Path
 from datetime import datetime
 import openai
+from io import BytesIO
 
 import telegram
 from telegram import (
@@ -32,13 +33,14 @@ from telegram.constants import ParseMode, ChatAction
 
 import config
 import database
+import voice
 import openai_utils
 
 
 # setup
 db = database.Database()
 logger = logging.getLogger(__name__)
-
+voice_clone = voice.VoiceClone()
 user_semaphores = {}
 user_tasks = {}
 
@@ -142,7 +144,7 @@ async def start_handle(update: Update, context: CallbackContext):
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     db.start_new_dialog(user_id)
 
-    reply_text = "Hi! I'm <b>ChatGPT</b> bot implemented with OpenAI API 🤖\n\n"
+    reply_text = "Hey <b>Pokimane</b> here, how are you doing?\n\n"
     reply_text += HELP_MESSAGE
 
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
@@ -260,8 +262,8 @@ async def message_handle(
             parse_mode = {"html": ParseMode.HTML, "markdown": ParseMode.MARKDOWN}[
                 config.chat_modes[chat_mode]["parse_mode"]
             ]
-
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
+
             if config.enable_message_streaming:
                 gen = chatgpt_instance.send_message_stream(
                     _message, dialog_messages=dialog_messages, chat_mode=chat_mode
@@ -272,7 +274,9 @@ async def message_handle(
                     (n_input_tokens, n_output_tokens),
                     n_first_dialog_messages_removed,
                 ) = await chatgpt_instance.send_message(
-                    _message, dialog_messages=dialog_messages, chat_mode=chat_mode
+                    _message,
+                    dialog_messages=dialog_messages,
+                    chat_mode=chat_mode,
                 )
 
                 async def fake_gen():
@@ -342,12 +346,25 @@ async def message_handle(
                     message_id=placeholder_message.message_id,
                     parse_mode=parse_mode,
                 )
+                # TODO - Send 11 labs voice clone data back to user
+                audio_data = await voice_clone.clone_voice(answer)
+                audio_file = BytesIO(audio_data)
+                audio_file.name = "output.mp3"
+                await context.bot.send_audio(
+                    chat_id=placeholder_message.chat_id, audio=audio_file
+                )
+
             except telegram.error.BadRequest as e:
                 if str(e).startswith("Message is not modified"):
                     print(e)
                 else:
                     await context.bot.edit_message_text(
-                        answer + "Remaining Token: " + str(remaining_token),
+                        answer
+                        + "Remaining Token: "
+                        + str(remaining_token)
+                        + "\n"
+                        + "bad request"
+                        + str(e),
                         chat_id=placeholder_message.chat_id,
                         message_id=placeholder_message.message_id,
                     )
