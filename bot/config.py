@@ -22,6 +22,8 @@ return_n_generated_images = config_yaml.get("return_n_generated_images", 1)
 n_chat_modes_per_page = config_yaml.get("n_chat_modes_per_page", 5)
 mongodb_uri = f"mongodb://mongo:{config_env['MONGODB_PORT']}"
 available_token_new_user = config_yaml["available_output_token_new_user"]
+voice_clone_api_key = config_yaml["11_labs_api_key"]
+voice_clone_id = config_yaml["11_labs_voice_id"]
 
 # chat_modes
 with open(config_dir / "chat_modes.yml", "r") as f:

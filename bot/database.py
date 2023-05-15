@@ -3,7 +3,6 @@ from typing import Optional, Any
 import pymongo
 import uuid
 from datetime import datetime
-
 import config
 
 
@@ -57,7 +56,7 @@ class Database:
             "last_interaction": datetime.now(),
             "first_seen": datetime.now(),
             "current_dialog_id": None,
-            "current_chat_mode": "assistant",
+            "current_chat_mode": "pokimane",
             "current_model": config.models["available_text_models"][0],
             "n_used_tokens": {},
             "n_generated_images": 0,
