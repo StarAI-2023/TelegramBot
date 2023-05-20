@@ -57,7 +57,9 @@ class Database:
             "first_seen": datetime.now(),
             "current_dialog_id": None,
             "current_chat_mode": "pokimane",
-            "current_model": config.models["available_text_models"][0],
+            "current_model": config.models["available_text_models"][
+                0
+            ],  # default model is davinci
             "n_used_tokens": {},
             "n_generated_images": 0,
             "n_transcribed_seconds": 0.0,  # voice message transcription

@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime
 import openai
 from io import BytesIO
+import time
 
 import telegram
 from telegram import (
@@ -33,14 +34,14 @@ from telegram.constants import ParseMode, ChatAction
 
 import config
 import database
-import voice
+import voice_clone
 import openai_utils
 
 
 # setup
 db = database.Database()
 logger = logging.getLogger(__name__)
-voice_clone = voice.VoiceClone()
+voice_clone = voice_clone.VoiceClone()
 user_semaphores = {}
 user_tasks = {}
 
@@ -199,6 +200,7 @@ async def message_handle(
     update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True
 ):
     # check if bot was mentioned (for group chats)
+    functionStartTime = time.perf_counter()
     if not await is_bot_mentioned(update, context):
         return
 
@@ -262,6 +264,7 @@ async def message_handle(
             parse_mode = {"html": ParseMode.HTML, "markdown": ParseMode.MARKDOWN}[
                 config.chat_modes[chat_mode]["parse_mode"]
             ]
+            openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
 
             if config.enable_message_streaming:
@@ -269,6 +272,7 @@ async def message_handle(
                     _message, dialog_messages=dialog_messages, chat_mode=chat_mode
                 )
             else:
+                openAIActualCallStartTime = time.perf_counter()
                 (
                     answer,
                     (n_input_tokens, n_output_tokens),
@@ -277,6 +281,10 @@ async def message_handle(
                     _message,
                     dialog_messages=dialog_messages,
                     chat_mode=chat_mode,
+                )
+                openAIActualCallEndTime = time.perf_counter()
+                print(
+                    f"OpenAI actual call elapsed time: {openAIActualCallEndTime-openAIActualCallStartTime} seconds."
                 )
 
                 async def fake_gen():
@@ -302,27 +310,28 @@ async def message_handle(
                 if abs(len(answer) - len(prev_answer)) < 100 and status != "finished":
                     continue
 
-                try:
-                    await context.bot.edit_message_text(
-                        answer,
-                        chat_id=placeholder_message.chat_id,
-                        message_id=placeholder_message.message_id,
-                        parse_mode=parse_mode,
-                    )
-                except telegram.error.BadRequest as e:
-                    if str(e).startswith("Message is not modified"):
-                        continue
-                    else:
-                        await context.bot.edit_message_text(
-                            answer,
-                            chat_id=placeholder_message.chat_id,
-                            message_id=placeholder_message.message_id,
-                        )
+                # try:
+                #     await context.bot.edit_message_text(
+                #         answer,
+                #         chat_id=placeholder_message.chat_id,
+                #         message_id=placeholder_message.message_id,
+                #         parse_mode=parse_mode,
+                #     )
+                # except telegram.error.BadRequest as e:
+                #     if str(e).startswith("Message is not modified"):
+                #         continue
+                #     else:
+                #         await context.bot.edit_message_text(
+                #             answer,
+                #             chat_id=placeholder_message.chat_id,
+                #             message_id=placeholder_message.message_id,
+                #         )
 
                 await asyncio.sleep(0.01)  # wait a bit to avoid flooding
 
                 prev_answer = answer
-
+            openAIEndTime = time.perf_counter()
+            print(f"OpenAI elapsed time: {openAIEndTime-openAIStartTime} seconds.")
             # update user data
             new_dialog_message = {
                 "user": _message,
@@ -340,18 +349,26 @@ async def message_handle(
             )
 
             try:
+                start_time = time.perf_counter()
+                audio_data = await voice_clone.generateVoice(answer)
+                end_time = time.perf_counter()
+                print(f"11 labs elapsed time: {end_time-start_time} seconds.")
+                audio_file = BytesIO(audio_data)
+                audio_file.name = "output.ogg"
+                await context.bot.send_voice(
+                    chat_id=placeholder_message.chat_id, voice=audio_file
+                )
+                # Update Remaining Tokens
                 await context.bot.edit_message_text(
-                    answer + "Remaining Token: " + str(remaining_token),
+                    # answer + "Remaining Token: " + str(remaining_token),       Commenting out because we are not sending text
+                    "Remaining Token: " + str(remaining_token),
                     chat_id=placeholder_message.chat_id,
                     message_id=placeholder_message.message_id,
                     parse_mode=parse_mode,
                 )
-                # TODO - Send 11 labs voice clone data back to user
-                audio_data = await voice_clone.clone_voice(answer)
-                audio_file = BytesIO(audio_data)
-                audio_file.name = "output.mp3"
-                await context.bot.send_audio(
-                    chat_id=placeholder_message.chat_id, audio=audio_file
+                functionEndTime = time.perf_counter()
+                print(
+                    f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
 
             except telegram.error.BadRequest as e:
