@@ -164,7 +164,7 @@ async def send_invoice_handle(update: Update, context: CallbackContext):
     await query.answer()
     invoice_amount = query.data.split("|")[1]
     await context.bot.sendInvoice(query.message.chat_id,title = "Deposit",description=f"deposit {invoice_amount} USD to your account",
-    payload = "unique invoice id",provider_token=config.stripe_token,currency="USD",
+    payload = "unique invoice id",provider_token=config.stripe_token_live,currency="USD",
     prices=[LabeledPrice(label=f"{invoice_amount} mins of usage",amount=int(invoice_amount)*100)])
 
 

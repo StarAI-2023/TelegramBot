@@ -14,7 +14,8 @@ config_env = dotenv.dotenv_values(config_dir / "config.env")
 # config parameters
 telegram_token = config_yaml["telegram_token"]
 openai_api_key = config_yaml["openai_api_key"]
-stripe_token = config_yaml["stripe_token"]
+stripe_token_live = config_yaml["stripe_token_live"]
+stripe_token_test = config_yaml["stripe_token_test"]
 use_chatgpt_api = config_yaml.get("use_chatgpt_api", True)
 allowed_telegram_usernames = config_yaml["allowed_telegram_usernames"]
 new_dialog_timeout = config_yaml["new_dialog_timeout"]
