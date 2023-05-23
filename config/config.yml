@@ -1,0 +1,28 @@
+telegram_token: "6196461025:AAGgms_SVVvYIn53oaJOGlDhjSydgueR8Hw"
+openai_api_key: "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"
+stripe_token_live: "350862534:LIVE:MjgxMWRmODdlMGMw"
+stripe_token_test: "284685063:TEST:YmNmOWY5NTRiMGYx"
+use_chatgpt_api: true
+allowed_telegram_usernames: []  # if empty, the bot is available to anyone. pass a username string to allow it and/or user ids as integers
+new_dialog_timeout: 10000  # new dialog starts after timeout (in seconds)
+
+#available token for new users before they create an account, this is still a lot because we are outputing audio files 
+available_output_token_new_user: 10000
+
+return_n_generated_images: 1
+n_chat_modes_per_page: 5
+enable_message_streaming: false  # if set, messages will be shown to user word-by-word
+
+# prices
+chatgpt_price_per_1000_tokens: 0.002
+gpt_price_per_1000_tokens: 0.02
+whisper_price_per_1_min: 0.006
+
+
+
+# voice clone
+# 11_labs_voice_id: "21m00Tcm4TlvDq8ikWAM" Standard Voice
+11_labs_voice_id: "Xa3HdpkHvIyaVWcu1rmM" # Voice From Shab
+11_labs_api_key: "7208c024013cf72ca4e7e674942844bb"
+
+
