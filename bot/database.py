@@ -91,7 +91,7 @@ class Database:
 
         return dialog_id
 
-    def get_user_attribute(self, user_id: int, key: str):
+    def get_user_attribute(self, user_id: int, key: str) -> str:
         self.check_if_user_exists(user_id, raise_exception=True)
         user_dict = self.user_collection.find_one({"_id": user_id})
 
@@ -110,17 +110,15 @@ class Database:
         model: str,
         n_input_tokens: int,
         n_output_tokens: int,
-        n_newly_added_tokens: int = 0,
-    ):
+    ) -> int:
         """
-        Updates the count of used tokens for a specific user and model.
+        Updates the count of used tokens for a specific user and model. If user used all the remaining tokens and the tokens go negative, set to 0.
 
         Args:
             user_id (int): The ID of the user.
             model (str): The name of the model.
             n_input_tokens (int): The number of input tokens used.
             n_output_tokens (int): The number of output tokens used.
-            n_newly_added_tokens (int, optional): The number of newly added tokens for the model. Defaults to 0.
 
         Returns:
             int: The remaining number of available output tokens for the model.
@@ -134,38 +132,57 @@ class Database:
         if model in n_used_tokens_dict:
             n_used_tokens_dict[model]["n_input_tokens"] += n_input_tokens
             n_used_tokens_dict[model]["n_output_tokens"] += n_output_tokens
+            n_used_tokens_dict[model]["n_remaining_output_tokens"] = max(
+                n_used_tokens_dict[model]["n_remaining_output_tokens"]
+                - n_output_tokens,
+                0,
+            )  # if negative tokens, set to 0
+
         else:
+            # initialize tokens for the model
             n_used_tokens_dict[model] = {
                 "n_input_tokens": n_input_tokens,
                 "n_output_tokens": n_output_tokens,
-                "n_available_output_token": config.available_token_new_user,
+                "n_remaining_output_tokens": max(
+                    config.available_token_new_user - n_output_tokens, 0
+                ),  # remaining tokens = initially available tokens - tokens used for the first time message response, if negative tokens, set to 0
             }
-        # data backfill in case this field doesn't exist
-        if "n_available_output_token" not in n_used_tokens_dict[model]:
-            n_used_tokens_dict[model]["n_available_output_token"] = n_used_tokens_dict[
-                model
-            ]["n_output_tokens"]
 
-        if n_newly_added_tokens > 0:
-            n_used_tokens_dict[model][
-                "n_available_output_token"
-            ] += n_newly_added_tokens
+        self.set_user_attribute(user_id, "n_used_tokens", n_used_tokens_dict)
+        return n_used_tokens_dict[model]["n_remaining_output_tokens"]
 
-        remaining_tokens = (
-            n_used_tokens_dict[model]["n_available_output_token"]
-            - n_used_tokens_dict[model]["n_output_tokens"]
+    def get_remaining_tokens(self, user_id: int, model: str) -> int:
+        """
+        return the remaining number of available output tokens for the model, e.g. gpt-turbo.
+        """
+        if model not in config.models["available_text_models"]:
+            raise ValueError(
+                f"Model {model} is not supported, available models are: {config.models['available_text_models']}"
+            )
+
+        n_used_tokens_dict = self.get_user_attribute(
+            user_id=user_id, key="n_used_tokens"
         )
-
-        if remaining_tokens > 0:
-            self.set_user_attribute(user_id, "n_used_tokens", n_used_tokens_dict)
-            return remaining_tokens
+        if model in n_used_tokens_dict:
+            return n_used_tokens_dict[model]["n_remaining_output_tokens"]
         else:
-            # no token remaining, adjust available output token to be equal to total amount of token consumed
-            # by the user, and then return 0 to indicate the user needs to pay to get more token
-            n_used_tokens_dict[model]["n_available_output_token"] = n_used_tokens_dict[
-                model
-            ]["n_output_tokens"]
-            return 0
+            return config.available_token_new_user
+
+    def increase_remaining_tokens(
+        self, user_id: int, model: str, tokens_added: int
+    ) -> int:
+        """
+        increase the remaining number of available output tokens for the model, e.g. gpt-turbo.
+        """
+        n_used_tokens_dict = self.get_user_attribute(user_id, "n_used_tokens")
+        if model in n_used_tokens_dict:
+            n_used_tokens_dict[model]["n_remaining_output_tokens"] += tokens_added
+            self.set_user_attribute(user_id, "n_used_tokens", n_used_tokens_dict)
+            return n_used_tokens_dict[model]["n_remaining_output_tokens"]
+        else:
+            raise ValueError(
+                f"Model {model} does not exist in the database, can't increase remaining tokens"
+            )
 
     def get_dialog_messages(self, user_id: int, dialog_id: Optional[str] = None):
         self.check_if_user_exists(user_id, raise_exception=True)

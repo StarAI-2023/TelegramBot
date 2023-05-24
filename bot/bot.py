@@ -5,8 +5,8 @@ import traceback
 import html
 import json
 import tempfile
-import pydub
 from pathlib import Path
+import pydub
 from datetime import datetime
 import openai
 from io import BytesIO
@@ -32,20 +32,20 @@ from telegram.ext import (
     filters,
     PreCheckoutQueryHandler,
 )
-from telegram.constants import ParseMode, ChatAction
+from telegram.constants import ParseMode
 
-import config
 import database
 import voice_clone
 import openai_utils
+import config
 
 
 # setup
 db = database.Database()
 logger = logging.getLogger(__name__)
 voice_clone = voice_clone.VoiceClone()
-user_semaphores = {}
-user_tasks = {}
+user_semaphores: dict = {}
+user_tasks: dict = {}
 
 HELP_MESSAGE = """Commands:
 ⚪ /retry – Regenerate last bot answer
@@ -80,11 +80,11 @@ def split_text_into_chunks(text, chunk_size):
 
 async def register_user_if_not_exists(
     update: Update, context: CallbackContext, user: User
-):
+) -> None:
     if not db.check_if_user_exists(user.id):
         db.add_new_user(
-            user.id,
-            update.message.chat_id,
+            user_id=user.id,
+            chat_id=update.message.chat_id,
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
@@ -102,17 +102,6 @@ async def register_user_if_not_exists(
             user.id, "current_model", config.models["available_text_models"][0]
         )
 
-    # back compatibility for n_used_tokens field
-    n_used_tokens = db.get_user_attribute(user.id, "n_used_tokens")
-    if isinstance(n_used_tokens, int):  # old format
-        new_n_used_tokens = {
-            "gpt-3.5-turbo": {
-                "n_input_tokens": 0,
-                "n_output_tokens": n_used_tokens,
-            }
-        }
-        db.set_user_attribute(user.id, "n_used_tokens", new_n_used_tokens)
-
     # voice message transcription
     if db.get_user_attribute(user.id, "n_transcribed_seconds") is None:
         db.set_user_attribute(user.id, "n_transcribed_seconds", 0.0)
@@ -122,7 +111,7 @@ async def register_user_if_not_exists(
         db.set_user_attribute(user.id, "n_generated_images", 0)
 
 
-async def is_bot_mentioned(update: Update, context: CallbackContext):
+async def is_bot_mentioned(update: Update, context: CallbackContext) -> bool:
     try:
         message = update.message
 
@@ -140,18 +129,22 @@ async def is_bot_mentioned(update: Update, context: CallbackContext):
     else:
         return False
 
-def createButton(amounts:list):
-    return [InlineKeyboardButton(
-                        x, callback_data=f"deposit|{x}",pay=True
-                    ) for x in amounts]
+
+def createButton(amounts: list):
+    return [
+        InlineKeyboardButton(x, callback_data=f"deposit|{x}", pay=True) for x in amounts
+    ]
+
+
 async def deposit_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
-    reply_text = "Click on the buttons below to place your deposit, 1$/min\n\n"
+    reply_text = "Please choose the amount you want to deposit. For reference, 300 tokens cost $1.\n\n"
+
     invoice_choice = []
-    invoice_choice.append(createButton(["5","10","30"]))
-    invoice_choice.append(createButton(["60","100","250"]))
+    invoice_choice.append(createButton(["5", "10", "30"]))
+    invoice_choice.append(createButton(["60", "100", "250"]))
     invoice_choice.append(createButton(["500"]))
 
     reply_markup = InlineKeyboardMarkup(invoice_choice)
@@ -159,29 +152,60 @@ async def deposit_handle(update: Update, context: CallbackContext):
         reply_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
     )
 
+
 async def send_invoice_handle(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     invoice_amount = query.data.split("|")[1]
-    await context.bot.sendInvoice(query.message.chat_id,title = "Deposit",description=f"deposit {invoice_amount} USD to your account",
-    payload = "unique invoice id",provider_token=config.stripe_token_live,currency="USD",
-    prices=[LabeledPrice(label=f"{invoice_amount} mins of usage",amount=int(invoice_amount)*100)])
+    await context.bot.sendInvoice(
+        query.message.chat_id,
+        title="Deposit",
+        description=f"deposit {invoice_amount} USD to your account",
+        payload="unique invoice id",
+        provider_token=config.stripe_token_live,
+        # provider_token=config.stripe_token_test,
+        currency="USD",
+        prices=[
+            LabeledPrice(
+                label=f"{invoice_amount} mins of usage",
+                amount=int(invoice_amount) * 100,
+            )
+        ],
+    )
 
 
 async def pre_checkout_query_handle(update: Update, context: CallbackContext):
     query = update.pre_checkout_query
     await context.bot.answer_pre_checkout_query(query.id, True)
 
-async def successful_payment_handle(update: Update, context: CallbackContext):
-    successful_payment = update.message.successful_payment
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Thanks for your purchase!")
 
-async def start_handle(update: Update, context: CallbackContext):
+async def successful_payment_handle(update: Update, context: CallbackContext):
+    """
+    this method is called when a successful payment has been made,
+    We increase available tokens of the user corresponding to the amount paid
+    """
+    successful_payment = update.message.successful_payment
+    user_id: int = update.message.from_user.id
+    current_model: str = db.get_user_attribute(user_id=user_id, key="current_model")
+
+    db.increase_remaining_tokens(
+        user_id,
+        current_model,
+        successful_payment.total_amount
+        * 3,  # 1 dollar == total amount 100, each dollar 300 tokens
+    )
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Thanks for your purchase!"
+    )
+
+
+async def start_handle(update: Update, context: CallbackContext) -> None:
     await register_user_if_not_exists(update, context, update.message.from_user)
     user = update.message.from_user
     user_id = user.id
     username = user.first_name
-    
+
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     db.start_new_dialog(user_id)
 
@@ -258,8 +282,10 @@ async def message_handle(
     if await is_previous_message_not_answered_yet(update, context):
         return
 
-    user_id = update.message.from_user.id
-    chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
+    user_id: int = update.message.from_user.id
+    chat_mode: str | None = db.get_user_attribute(
+        user_id=user_id, key="current_chat_mode"
+    )
 
     if chat_mode == "artist":
         await generate_image_handle(update, context, message=message)
@@ -280,11 +306,18 @@ async def message_handle(
                 )
         db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
-        # in case of CancelledError
         n_input_tokens, n_output_tokens = 0, 0
-        current_model = db.get_user_attribute(user_id, "current_model")
-
-        try:
+        current_model: str | None = db.get_user_attribute(user_id, key="current_model")
+        remaining_tokens: int = db.get_remaining_tokens(
+            user_id=user_id, model=current_model
+        )
+        print("remaining token:" + str(remaining_tokens))
+        if (remaining_tokens) <= 0:
+            await update.message.reply_text(
+                text="You have no remaining tokens. Please type /deposit to add more tokens."
+            )
+            return
+        try:  # in case of CancelledError
             # send placeholder message to user
             placeholder_message = await update.message.reply_text("...")
 
@@ -383,8 +416,11 @@ async def message_handle(
                 dialog_id=None,
             )
 
-            remaining_token = db.update_n_used_tokens(
-                user_id, current_model, n_input_tokens, n_output_tokens
+            remaining_token: int = db.update_n_used_tokens(
+                user_id=user_id,
+                model=current_model,
+                n_input_tokens=n_input_tokens,
+                n_output_tokens=n_output_tokens,
             )
 
             try:
@@ -906,14 +942,15 @@ def run_bot() -> None:
 
     application.add_handler(CommandHandler("start", start_handle, filters=user_filter))
 
-
-    application.add_handler(CommandHandler("deposit", deposit_handle, filters=user_filter))
-    application.add_handler(PreCheckoutQueryHandler(pre_checkout_query_handle))
-    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handle))
     application.add_handler(
-        CallbackQueryHandler(
-            send_invoice_handle, pattern="^deposit"
-        )
+        CommandHandler("deposit", deposit_handle, filters=user_filter)
+    )
+    application.add_handler(PreCheckoutQueryHandler(pre_checkout_query_handle))
+    application.add_handler(
+        MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handle)
+    )
+    application.add_handler(
+        CallbackQueryHandler(send_invoice_handle, pattern="^deposit")
     )
 
     application.add_handler(CommandHandler("help", help_handle, filters=user_filter))

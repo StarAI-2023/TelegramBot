@@ -1,5 +1,5 @@
+# from bot import config
 import config
-
 import tiktoken
 import openai
 
