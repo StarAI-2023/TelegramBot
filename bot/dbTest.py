@@ -1,6 +1,5 @@
-# Test Here
-import imp
 import unittest
+
 from database import Database
 import config
 
@@ -63,7 +62,6 @@ class DatabaseTestCase(unittest.TestCase):
             model,
             n_input_tokens,
             n_output_tokens,
-            n_newly_added_tokens,
         )
 
         # Check if the remaining tokens are calculated correctly
