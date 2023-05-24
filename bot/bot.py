@@ -148,7 +148,7 @@ async def deposit_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
-    reply_text = "give me your money MTF, 1$/min\n\n"
+    reply_text = "Click on the buttons below to place your deposit, 1$/min\n\n"
     invoice_choice = []
     invoice_choice.append(createButton(["5","10","30"]))
     invoice_choice.append(createButton(["60","100","250"]))
@@ -178,12 +178,14 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
 
 async def start_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    user_id = update.message.from_user.id
-
+    user = update.message.from_user
+    user_id = user.id
+    username = user.first_name
+    
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
     db.start_new_dialog(user_id)
 
-    reply_text = "Hey <b>Pokimane</b> here, how are you doing?\n\n"
+    reply_text = f"Hey <b>{username}</b> here, how are you doing?\n\n"
     reply_text += HELP_MESSAGE
     await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
     await show_chat_modes_handle(update, context)
