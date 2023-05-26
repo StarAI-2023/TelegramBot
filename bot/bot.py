@@ -997,7 +997,7 @@ def run_bot() -> None:
     application.add_error_handler(error_handle)
 
     # start the bot
-    application.run_webhook(url_path = "https://telegrambottttt.herokuapp.com/" + config.telegram_token)
+    application.run_webhook(url_path='https://telegrambottttt.herokuapp.com/' + config.telegram_token)
 
 
 if __name__ == "__main__":
