@@ -9,3 +9,4 @@ build:
 
 run:
   chatgpt_telegram_bot: python3 bot/bot.py
+  mongo: mongod --bind_ip_all
