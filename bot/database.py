@@ -56,7 +56,7 @@ class Database:
             "last_interaction": datetime.now(),
             "first_seen": datetime.now(),
             "current_dialog_id": None,
-            "current_chat_mode": "pokimane",
+            "current_chat_mode": "Shab",
             "current_model": config.models["available_text_models"][
                 0
             ],  # default model is davinci
