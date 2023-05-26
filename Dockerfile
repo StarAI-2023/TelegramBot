@@ -18,4 +18,6 @@ WORKDIR /code
 
 RUN pip3 install -r requirements.txt
 
-CMD ["bash"]
+# CMD ["bash"]
+
+# docker-compose --env-file config/config.env up --build
