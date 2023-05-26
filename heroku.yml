@@ -7,11 +7,5 @@ build:
     chatgpt_telegram_bot: Dockerfile
     mongo: Dockerfile
 
-release:
-  image: chatgpt_telegram_bot
-  command:
-    - python3 bot/bot.py
-
 run:
   chatgpt_telegram_bot: python3 bot/bot.py
-  mongo: mongod --bind_ip_all
