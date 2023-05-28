@@ -1,12 +1,6 @@
-setup:
-  config:
-    MONGODB_PORT: 27017
-    MONGODB_PATH: ./mongodb
 build:
   docker:
     chatgpt_telegram_bot: Dockerfile
-    mongo: Dockerfile
 
 run:
   chatgpt_telegram_bot: python3 bot/bot.py
-  # mongo: mongod --bind_ip_all
