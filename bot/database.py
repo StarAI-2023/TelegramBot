@@ -151,7 +151,9 @@ class Database:
         self.set_user_attribute(user_id, "n_used_tokens", n_used_tokens_dict)
         return n_used_tokens_dict[model]["n_remaining_output_tokens"]
 
-    def get_remaining_tokens(self, user_id: int, model: str) -> int:
+    def get_remaining_tokens(
+        self, user_id: int, model: str = "text-davinci-003"
+    ) -> int:
         """
         return the remaining number of available output tokens for the model, e.g. gpt-turbo.
         """
