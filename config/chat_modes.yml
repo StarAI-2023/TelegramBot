@@ -30,7 +30,7 @@ sweet:
   parse_mode: html
 
 horny:
-  name: honry mode
+  name: unfiltered mode
   model_type: text
   welcome_message: Hey there, this is Shab, how are you doing!
   prompt_start: |
