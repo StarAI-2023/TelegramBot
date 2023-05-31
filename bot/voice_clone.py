@@ -10,7 +10,7 @@ class VoiceClone:
         self.voice_id = config.voice_clone_id
         self.url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}?optimize_streaming_latency=0"
 
-    async def generateVoice(self, text):
+    async def generateVoice(self, text) -> bytes:
         headers = {
             "accept": "audio/mpeg",
             "xi-api-key": self.api_key,

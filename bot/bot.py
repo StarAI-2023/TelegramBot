@@ -51,7 +51,6 @@ HELP_MESSAGE = """Commands:
 ⚪ /retry – Regenerate last bot answer
 ⚪ /new – Start new dialog
 ⚪ /mode – Select chat mode
-⚪ /settings – Show settings
 ⚪ /balance – Show balance
 ⚪ /help – Show help
 ⚪ /deposit – Add credits to you account
@@ -306,9 +305,7 @@ async def message_handle(
 
         n_input_tokens, n_output_tokens = 0, 0
         current_model: str | None = db.get_user_attribute(user_id, key="current_model")
-        remaining_tokens: int = db.get_remaining_tokens(
-            user_id=user_id, model=current_model
-        )
+        remaining_tokens: int = db.get_remaining_tokens(user_id=user_id)
         print("remaining token:" + str(remaining_tokens))
         if (remaining_tokens) <= 0:
             await update.message.reply_text(
@@ -423,7 +420,7 @@ async def message_handle(
 
             try:
                 start_time = time.perf_counter()
-                audio_data = await voice_clone.generateVoice(answer)
+                audio_data: bytes = await voice_clone.generateVoice(text=answer)
                 end_time = time.perf_counter()
                 print(f"11 labs elapsed time: {end_time-start_time} seconds.")
                 audio_file = BytesIO(audio_data)
@@ -750,124 +747,20 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
     )
 
 
-def get_settings_menu(user_id: int):
-    current_model = db.get_user_attribute(user_id, "current_model")
-    text = config.models["info"][current_model]["description"]
-
-    text += "\n\n"
-    score_dict = config.models["info"][current_model]["scores"]
-    for score_key, score_value in score_dict.items():
-        text += "🟢" * score_value + "⚪️" * (5 - score_value) + f" – {score_key}\n\n"
-
-    text += "\nSelect <b>model</b>:"
-
-    # buttons to choose models
-    buttons = []
-    for model_key in config.models["available_text_models"]:
-        title = config.models["info"][model_key]["name"]
-        if model_key == current_model:
-            title = "✅ " + title
-
-        buttons.append(
-            InlineKeyboardButton(title, callback_data=f"set_settings|{model_key}")
-        )
-    reply_markup = InlineKeyboardMarkup([buttons])
-
-    return text, reply_markup
-
-
-async def settings_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
-
-    user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
-
-    text, reply_markup = get_settings_menu(user_id)
-    await update.message.reply_text(
-        text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
-    )
-
-
-async def set_settings_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(
-        update.callback_query, context, update.callback_query.from_user
-    )
-    user_id = update.callback_query.from_user.id
-
-    query = update.callback_query
-    await query.answer()
-
-    _, model_key = query.data.split("|")
-    db.set_user_attribute(user_id, "current_model", model_key)
-    db.start_new_dialog(user_id)
-
-    text, reply_markup = get_settings_menu(user_id)
-    try:
-        await query.edit_message_text(
-            text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
-        )
-    except telegram.error.BadRequest as e:
-        if str(e).startswith("Message is not modified"):
-            pass
-
-
 async def show_balance_handle(update: Update, context: CallbackContext):
+    """return n_remaining_output_tokens tokens for the user"""
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
     db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
-    # count total usage statistics
-    total_n_spent_dollars = 0
-    total_n_used_tokens = 0
-
-    n_used_tokens_dict = db.get_user_attribute(user_id, "n_used_tokens")
-    n_generated_images = db.get_user_attribute(user_id, "n_generated_images")
-    n_transcribed_seconds = db.get_user_attribute(user_id, "n_transcribed_seconds")
-
-    details_text = "🏷️ Details:\n"
-    for model_key in sorted(n_used_tokens_dict.keys()):
-        n_input_tokens, n_output_tokens = (
-            n_used_tokens_dict[model_key]["n_input_tokens"],
-            n_used_tokens_dict[model_key]["n_output_tokens"],
-        )
-        total_n_used_tokens += n_input_tokens + n_output_tokens
-
-        n_input_spent_dollars = config.models["info"][model_key][
-            "price_per_1000_input_tokens"
-        ] * (n_input_tokens / 1000)
-        n_output_spent_dollars = config.models["info"][model_key][
-            "price_per_1000_output_tokens"
-        ] * (n_output_tokens / 1000)
-        total_n_spent_dollars += n_input_spent_dollars + n_output_spent_dollars
-
-        details_text += f"- {model_key}: <b>{n_input_spent_dollars + n_output_spent_dollars:.03f}$</b> / <b>{n_input_tokens + n_output_tokens} tokens</b>\n"
-
-    # image generation
-    image_generation_n_spent_dollars = (
-        config.models["info"]["dalle-2"]["price_per_1_image"] * n_generated_images
+    remaining_token = db.get_remaining_tokens(
+        user_id=user_id
+    )  # TODO: Remove model and not hardcode
+    await update.message.reply_text(
+        text="Here are your remaining tokens: " + str(remaining_token),
+        parse_mode=ParseMode.HTML,
     )
-    if n_generated_images != 0:
-        details_text += f"- DALL·E 2 (image generation): <b>{image_generation_n_spent_dollars:.03f}$</b> / <b>{n_generated_images} generated images</b>\n"
-
-    total_n_spent_dollars += image_generation_n_spent_dollars
-
-    # voice recognition
-    voice_recognition_n_spent_dollars = config.models["info"]["whisper"][
-        "price_per_1_min"
-    ] * (n_transcribed_seconds / 60)
-    if n_transcribed_seconds != 0:
-        details_text += f"- Whisper (voice recognition): <b>{voice_recognition_n_spent_dollars:.03f}$</b> / <b>{n_transcribed_seconds:.01f} seconds</b>\n"
-
-    total_n_spent_dollars += voice_recognition_n_spent_dollars
-
-    text = f"You spent <b>{total_n_spent_dollars:.03f}$</b>\n"
-    text += f"You used <b>{total_n_used_tokens}</b> tokens\n\n"
-    text += details_text
-
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
 async def edited_message_handle(update: Update, context: CallbackContext):
@@ -915,9 +808,8 @@ async def post_init(application: Application):
             BotCommand("/mode", "Select chat mode"),
             BotCommand("/retry", "Re-generate response for previous query"),
             BotCommand("/balance", "Show balance"),
-            BotCommand("/settings", "Show settings"),
             BotCommand("/help", "Show help message"),
-            BotCommand("/deposit", "deposit to your account")
+            BotCommand("/deposit", "deposit to your account"),
         ]
     )
 
@@ -982,13 +874,6 @@ def run_bot() -> None:
     )
     application.add_handler(
         CallbackQueryHandler(set_chat_mode_handle, pattern="^set_chat_mode")
-    )
-
-    application.add_handler(
-        CommandHandler("settings", settings_handle, filters=user_filter)
-    )
-    application.add_handler(
-        CallbackQueryHandler(set_settings_handle, pattern="^set_settings")
     )
 
     application.add_handler(
