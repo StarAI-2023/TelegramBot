@@ -24,7 +24,7 @@ class ChatGPT:
         }, f"Unknown model: {model}"
         self.model = model
 
-    async def send_message(self, message, dialog_messages=[], chat_mode="pokimane"):
+    async def send_message(self, message, dialog_messages=[], chat_mode="Shab"):
         """
         Sends a message to the chatbot model for generating a response.
 
@@ -32,7 +32,7 @@ class ChatGPT:
             message (str): The user's message.
             dialog_messages (list, optional): List of previous dialog messages. Each message is a dictionary
                 with 'user', 'bot', and 'date' keys. Defaults to an empty list.
-            chat_mode (str, optional): The chat mode to use for the conversation. Defaults to "pokimane".
+            chat_mode (str, optional): The chat mode to use for the conversation. Defaults to "Shab".
 
         Returns:
             tuple: A tuple containing the generated answer (str), the number of input tokens (int),
@@ -92,7 +92,7 @@ class ChatGPT:
         )
 
     async def send_message_stream(
-        self, message, dialog_messages=[], chat_mode="pokimane"
+        self, message, dialog_messages=[], chat_mode="Shab"
     ):
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")

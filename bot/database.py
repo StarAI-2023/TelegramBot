@@ -9,7 +9,7 @@ import config
 class Database:
     def __init__(self):
         # TODO: Comment this back:
-        self.client = pymongo.MongoClient(config.mongodb_uri)
+        self.client = pymongo.MongoClient(config.mongodb_uri_remote)
         # if mongodb_uri is not working try this instead:
         # This is due to docker local network
         # self.client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -56,7 +56,7 @@ class Database:
             "last_interaction": datetime.now(),
             "first_seen": datetime.now(),
             "current_dialog_id": None,
-            "current_chat_mode": "pokimane",
+            "current_chat_mode": "Shab",
             "current_model": config.models["available_text_models"][
                 0
             ],  # default model is davinci

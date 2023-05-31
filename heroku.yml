@@ -1,0 +1,6 @@
+build:
+  docker:
+    chatgpt_telegram_bot: Dockerfile
+
+run:
+  chatgpt_telegram_bot: python3 bot/bot.py

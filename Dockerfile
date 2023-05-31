@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3.11-slim
 
 ENV PYTHONFAULTHANDLER=1
 ENV PYTHONUNBUFFERED=1
@@ -17,4 +17,6 @@ WORKDIR /code
 
 RUN pip3 install -r requirements.txt
 
-CMD ["bash"]
+CMD ["python3","bot/bot.py"]
+
+# docker-compose --env-file config/config.env up --build
