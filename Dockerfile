@@ -19,4 +19,4 @@ RUN pip3 install -r requirements.txt
 
 CMD ["python3","bot/bot.py"]
 
-# docker-compose --env-file config/config.env up --build
+# docker build -t bot . && docker run bot
