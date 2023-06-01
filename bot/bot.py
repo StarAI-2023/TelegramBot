@@ -308,6 +308,7 @@ async def message_handle(
             return
         try:  # in case of CancelledError
             # send use that action showing bot is talking and recording audio
+            await update.message.reply_text(text="Speaking...")
             await update.message.chat.send_action(action="record_audio")
 
             if _message is None or len(_message) == 0:
@@ -317,11 +318,9 @@ async def message_handle(
                     parse_mode=ParseMode.HTML,
                 )
                 return
-
             dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
-            parse_mode = {"html": ParseMode.HTML, "markdown": ParseMode.MARKDOWN}[
-                config.chat_modes[chat_mode]["parse_mode"]
-            ]
+            logger.error(f"dialog_messages: {dialog_messages}")
+
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
             openAIActualCallStartTime = time.perf_counter()
