@@ -56,6 +56,7 @@ HELP_MESSAGE = """Commands:
 ⚪ /deposit – Add credits to you account
 
 🎤 You can send <b>Voice Messages</b> instead of text
+
 Please select chat mode, default toxic mode.
 """
 
@@ -309,7 +310,7 @@ async def message_handle(
             return
         try:  # in case of CancelledError
             # send use that action showing bot is talking and recording audio
-            await update.message.reply_text(text="Speaking...")
+            to_delete = await update.message.reply_text(text="...")
             await update.message.chat.send_action(action="record_audio")
 
             if _message is None or len(_message) == 0:
@@ -320,7 +321,6 @@ async def message_handle(
                 )
                 return
             dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
-            logger.error(f"dialog_messages: {dialog_messages}")
 
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT(model=current_model)
@@ -335,13 +335,13 @@ async def message_handle(
                 chat_mode=chat_mode,
             )
             openAIActualCallEndTime = time.perf_counter()
-            logger.debug(
+            logger.error(
                 msg=f"OpenAI actual call elapsed time: {openAIActualCallEndTime-openAIActualCallStartTime} seconds."
             )
 
             answer = answer[:4096]  # telegram message limit
             openAIEndTime = time.perf_counter()
-            logger.debug(
+            logger.error(
                 msg=f"OpenAI elapsed time: {openAIEndTime-openAIStartTime} seconds."
             )
 
@@ -367,7 +367,7 @@ async def message_handle(
                 start_time = time.perf_counter()
                 audio_data: bytes = await voice_clone.generateVoice(text=answer)
                 end_time = time.perf_counter()
-                logger.debug(
+                logger.error(
                     msg=f"11 labs elapsed time: {end_time-start_time} seconds."
                 )
                 audio_file = BytesIO(audio_data)
@@ -377,8 +377,9 @@ async def message_handle(
                     logger.critical(f"Current chat id is None. Update: {update}")
 
                 await context.bot.send_voice(chat_id=current_chat_id, voice=audio_file)
+                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
                 functionEndTime = time.perf_counter()
-                logger.debug(
+                logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
 
@@ -683,10 +684,9 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
             except telegram.error.BadRequest:
                 # answer has invalid characters, so we send it without parse_mode
                 await context.bot.send_message(update.effective_chat.id, message_chunk)
-    except:
-        await context.bot.send_message(
-            update.effective_chat.id, "Some error in error handler"
-        )
+    except Exception as error:
+            error_text = f"Something went wrong during completion. Reason: {error}, update: {update}, context: {context}"
+            logger.error(error_text)
 
 
 async def post_init(application: Application):
