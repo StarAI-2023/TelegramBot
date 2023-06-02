@@ -1,7 +1,7 @@
-telegram_token: "6232825098:AAEHSB5cwayPbxK9XqYi-YdQSktydahWBY8"
+telegram_token: "6111930531:AAHRKA-l4B3OCGhAxpU-OzxJuA9MSfy_J-4"
 openai_api_key: "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"
-stripe_token_live: "350862534:LIVE:MjgxMWRmODdlMGMw"
-stripe_token_test: "284685063:TEST:YmNmOWY5NTRiMGYx"
+stripe_token_live: "350862534:LIVE:YWQ3NGVkZjFmMWM4"
+stripe_token_test: "284685063:TEST:NmYyNjY3N2QwOWNl"
 use_chatgpt_api: true
 allowed_telegram_usernames: []  # if empty, the bot is available to anyone. pass a username string to allow it and/or user ids as integers
 new_dialog_timeout: 10000  # new dialog starts after timeout (in seconds)
