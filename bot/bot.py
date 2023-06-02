@@ -307,13 +307,13 @@ async def message_handle(
                 chat_mode=chat_mode,
             )
             openAIActualCallEndTime = time.perf_counter()
-            logger.debug(
+            logger.error(
                 msg=f"OpenAI actual call elapsed time: {openAIActualCallEndTime-openAIActualCallStartTime} seconds."
             )
 
             answer = answer[:4096]  # telegram message limit
             openAIEndTime = time.perf_counter()
-            logger.debug(
+            logger.error(
                 msg=f"OpenAI elapsed time: {openAIEndTime-openAIStartTime} seconds."
             )
 
@@ -331,7 +331,7 @@ async def message_handle(
                 start_time = time.perf_counter()
                 audio_data: bytes = await voice_clone.generateVoice(text=answer)
                 end_time = time.perf_counter()
-                logger.debug(
+                logger.error(
                     msg=f"11 labs elapsed time: {end_time-start_time} seconds."
                 )
                 audio_file = BytesIO(audio_data)
@@ -342,7 +342,7 @@ async def message_handle(
 
                 await context.bot.send_voice(chat_id=current_chat_id, voice=audio_file)
                 functionEndTime = time.perf_counter()
-                logger.debug(
+                logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
 
@@ -593,7 +593,8 @@ async def edited_message_handle(update: Update, context: CallbackContext):
 
 async def error_handle(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
-
+    if not update:
+        return
     try:
         # collect error message
         tb_list = traceback.format_exception(
@@ -650,11 +651,7 @@ def run_bot() -> None:
 
     # add handlers
     user_filter = filters.ALL
-    if len(config.allowed_telegram_usernames) > 0:
-        usernames = [x for x in config.allowed_telegram_usernames if isinstance(x, str)]
-        user_ids = [x for x in config.allowed_telegram_usernames if isinstance(x, int)]
-        user_filter = filters.User(username=usernames) | filters.User(user_id=user_ids)
-
+    
     application.add_handler(CommandHandler("start", start_handle, filters=user_filter))
 
     application.add_handler(
