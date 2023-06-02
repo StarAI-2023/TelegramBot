@@ -91,9 +91,7 @@ class ChatGPT:
             n_first_dialog_messages_removed,
         )
 
-    async def send_message_stream(
-        self, message, dialog_messages=[], chat_mode="Shab"
-    ):
+    async def send_message_stream(self, message, dialog_messages=[], chat_mode="Shab"):
         if chat_mode not in config.chat_modes.keys():
             raise ValueError(f"Chat mode {chat_mode} is not supported")
 
@@ -173,13 +171,12 @@ class ChatGPT:
     def _generate_prompt(self, message, dialog_messages, chat_mode):
         prompt = config.chat_modes[chat_mode]["prompt_start"]
         prompt += "\n\n"
-
         # add chat context
         if len(dialog_messages) > 0:
             prompt += "Chat:\n"
-            for dialog_message in dialog_messages:
-                prompt += f"User: {dialog_message['user']}\n"
-                prompt += f"Assistant: {dialog_message['bot']}\n"
+            for user_message, ai_response in dialog_messages:
+                prompt += f"{user_message}\n"
+                prompt += f"{ai_response}\n"
 
         # current message
         prompt += f"User: {message}\n"
@@ -191,9 +188,9 @@ class ChatGPT:
         prompt = config.chat_modes[chat_mode]["prompt_start"]
 
         messages = [{"role": "system", "content": prompt}]
-        for dialog_message in dialog_messages:
-            messages.append({"role": "user", "content": dialog_message["user"]})
-            messages.append({"role": "assistant", "content": dialog_message["bot"]})
+        for user_message, ai_response in dialog_messages:
+            messages.append({"role": "user", "content": user_message})
+            messages.append({"role": "assistant", "content": ai_response})
         messages.append({"role": "user", "content": message})
 
         return messages
