@@ -658,7 +658,8 @@ async def edited_message_handle(update: Update, context: CallbackContext):
 
 async def error_handle(update: Update, context: CallbackContext) -> None:
     logger.error(msg="Exception while handling an update:", exc_info=context.error)
-
+    if not update:
+        return
     try:
         # collect error message
         tb_list = traceback.format_exception(
