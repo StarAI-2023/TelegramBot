@@ -27,7 +27,8 @@ mongodb_uri_second = "mongodb+srv://me:F595YW6HduqCjNyN@cluster0.9gg56ry.mongodb
 available_token_new_user = config_yaml["available_output_token_new_user"]
 voice_clone_api_key = config_yaml["11_labs_api_key"]
 voice_clone_id = config_yaml["11_labs_voice_id"]
-
+pinecone_api_key = config_yaml["pinecone_api_key"]
+pinecone_environment = config_yaml["pinecone_environment"]
 # chat_modes
 with open(config_dir / "chat_modes.yml", "r") as f:
     chat_modes = yaml.safe_load(f)

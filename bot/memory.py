@@ -1,5 +1,6 @@
 from datetime import datetime
-
+import config
+import pinecone
 
 class Memory:
     """
@@ -13,6 +14,7 @@ class Memory:
     def __init__(self, default_chat_mode: str = "sweet"):
         self.memory: dict = {}
         self.default_chat_mode: str = default_chat_mode
+        pinecone.init(api_key=config.pinecone_api_key, environment=config.pinecone_environment)
 
     def get_dialog(self, user_id: int):
         if user_id not in self.memory:

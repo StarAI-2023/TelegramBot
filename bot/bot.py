@@ -123,7 +123,7 @@ def createButton(amounts: list):
 async def deposit_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
-    reply_text = "Please choose the amount you want to deposit. For reference, 300 tokens cost $1.\n\n"
+    reply_text = "Please choose the amount you want to deposit. For reference, 600 tokens cost $1.\n\n"
 
     invoice_choice = []
     invoice_choice.append(createButton(["5", "10", "30"]))
@@ -173,7 +173,7 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
     db.increase_remaining_tokens(
         user_id=user_id,
         tokens_added=successful_payment.total_amount
-        * 3,  # 1 dollar == total amount 100, each dollar 300 tokens
+        * 6,  # 1 dollar == total amount 100, each dollar 600 tokens
     )
 
     await context.bot.send_message(
@@ -362,9 +362,7 @@ async def message_handle(
                 f"Something went wrong during completion in message_fn. Reason: {error}"
             )
             logger.critical(error_text)
-            await update.message.reply_text(
-                "Hey there, something went wrong. Please try again."
-            )
+            await retry_handle(update,context)
             return
 
     async with user_semaphores[user_id]:

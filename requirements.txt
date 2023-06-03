@@ -7,3 +7,4 @@ pymongo==4.3.3
 python-dotenv==0.21.0
 pydub==0.25.1
 elevenlabs==0.2.15
+pinecone-client==2.2.1
