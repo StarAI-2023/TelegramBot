@@ -284,7 +284,7 @@ async def message_handle(
             return
         try:  # in case of CancelledError
             # send use that action showing bot is talking and recording audio
-            await update.message.reply_text(text="...")
+            to_delete = await update.message.reply_text(text="...")
             await update.message.chat.send_action(action="record_audio")
 
             if incoming_message is None or len(incoming_message) == 0:
@@ -346,6 +346,7 @@ async def message_handle(
                 logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
+                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
                 retry_times = 0
             except telegram.error.BadRequest as error:
                 if str(error).startswith("Message is not modified"):
