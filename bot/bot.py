@@ -49,6 +49,7 @@ voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
 bot_memory: memory.Memory = memory.Memory()
+retry_times = 0
 
 HELP_MESSAGE = """Commands:
 ⚪ /retry – Regenerate last bot answer
@@ -345,12 +346,12 @@ async def message_handle(
                 logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
-
+                retry_times = 0
             except telegram.error.BadRequest as error:
                 if str(error).startswith("Message is not modified"):
                     logger.critical(msg=f"bad request error with {error}.")
                 else:
-                    logger.critical(msg=f"bad request error with {error}.")
+                    logger.critical(msg=f"bad request erroer with {error}.")
                     await context.bot.send_message(
                         current_chat_id,
                         "Something went wrong, please try again.",
@@ -358,11 +359,20 @@ async def message_handle(
                     )
 
         except Exception as error:
+            retry_times += 1
             error_text = (
-                f"Something went wrong during completion in message_fn. Reason: {error}"
-            )
-            logger.critical(error_text)
-            await retry_handle(update,context)
+                    f"Something went wrong during completion in message_fn. Reason: {error}, Retry times: {retry_times}"
+                )
+            if retry_times < 4:
+                logger.critical(error_text)
+                message_handle(
+                    update,
+                    context,
+                )
+            else:
+                logger.critical(error_text)
+                retry_times = 0
+                await update.message.reply_text("Hey there, something went wrong. Please try again.")
             return
 
     async with user_semaphores[user_id]:
