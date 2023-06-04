@@ -39,16 +39,19 @@ import database
 import voice_clone
 import openai_utils
 import memory
+import long_term
 import config
 
 
 # setup
+
 db: database.Database = database.Database()
 logger = logging.getLogger(__name__)
 voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
 bot_memory: memory.Memory = memory.Memory()
+long_term_memory:  long_term.LongTermMemory = long_term.LongTermMemory()
 retry_times = 0
 
 HELP_MESSAGE = """Commands:
@@ -90,6 +93,7 @@ async def register_user_if_not_exists(
             first_name=user.first_name,
             last_name=user.last_name,
         )
+        long_term_memory.add_new_user(user_id=user.id)
         bot_memory.create_dialog(user.id)
 
     if user.id not in user_semaphores:
