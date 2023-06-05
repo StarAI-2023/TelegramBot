@@ -263,6 +263,7 @@ async def message_handle(
     chat_mode: str | None = bot_memory.get_chat_mode(user_id)
 
     async def message_handle_fn():
+        global retry_times
         dialog_info = bot_memory.get_dialog(user_id)
         dialog_messages, dialog_start_time, dialog_chat_mode = (
             dialog_info["messages"],
@@ -302,13 +303,14 @@ async def message_handle(
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
+            previous_conv = [("preivous conversation:",long_term_memory.similarity_search(user_id,incoming_message))]
             (
                 answer,
                 (n_input_tokens, n_output_tokens),
                 not_used,
             ) = await chatgpt_instance.send_message(
                 incoming_message,
-                dialog_messages=dialog_messages,
+                dialog_messages= previous_conv + dialog_messages,
                 chat_mode=chat_mode,
             )
             openAIActualCallEndTime = time.perf_counter()
@@ -368,9 +370,9 @@ async def message_handle(
             error_text = (
                     f"Something went wrong during completion in message_fn. Reason: {error}, Retry times: {retry_times}"
                 )
-            if retry_times < 4:
+            if retry_times < 2:
                 logger.critical(error_text)
-                message_handle(
+                await message_handle(
                     update,
                     context,
                 )
@@ -453,11 +455,15 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context):
         return
-
-    bot_memory.reset_dialog(update.message.from_user.id)
+    user_id = update.message.from_user.id
+    
+    bot_memory.get_dialog_into_str(user_id)
+    long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
+    
+    bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")
 
-    chat_mode = bot_memory.get_chat_mode(update.message.from_user.id)
+    chat_mode = bot_memory.get_chat_mode(user_id)
     await update.message.reply_text(
         f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML
     )
@@ -577,8 +583,9 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
     chat_mode = query.data.split("|")[1]
 
-    bot_memory.set_chat_mode(user_id, chat_mode)
     bot_memory.reset_dialog(user_id)
+    bot_memory.set_chat_mode(user_id, chat_mode)
+    
 
     await context.bot.send_message(
         update.callback_query.message.chat.id,

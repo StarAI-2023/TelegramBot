@@ -1,5 +1,5 @@
 from datetime import datetime
-
+import config
 class Memory:
     """
     dialog_dict = {
@@ -57,4 +57,19 @@ class Memory:
         if user_id in self.memory:
             self.memory[user_id]["chat_mode"] = chat_mode
         else:
-            raise Exception(f"Failed to reset. No dialog found for user {user_id}")
+            self.create_dialog(user_id=user_id)
+    
+    def get_dialog_into_str(self, user_id):
+        current_dialog = self.get_dialog(user_id)
+        dialog_messages = current_dialog["messages"]
+        chat_mode = current_dialog["chat_mode"]
+        prompt = config.chat_modes[chat_mode]["prompt_start"]
+        prompt += "\n\n"
+        # add chat context
+        if len(dialog_messages) > 0:
+            prompt += "Chat:\n"
+            for user_message, ai_response in dialog_messages:
+                prompt += f"{user_message}\n"
+                prompt += f"{ai_response}\n"
+
+        return prompt
