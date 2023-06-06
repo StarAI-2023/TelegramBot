@@ -51,7 +51,7 @@ voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
 bot_memory: memory.Memory = memory.Memory()
-long_term_memory:  long_term.LongTermMemory = long_term.LongTermMemory()
+long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 retry_times = 0
 
 HELP_MESSAGE = """Commands:
@@ -127,7 +127,7 @@ def createButton(amounts: list):
 async def deposit_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
-    reply_text = "Please choose the amount you want to deposit. For reference, 600 tokens cost $1.\n\n"
+    reply_text = "Please choose the amount you want to deposit. For reference, 400 tokens cost $1.\n\n"
 
     invoice_choice = []
     invoice_choice.append(createButton(["5", "10", "30"]))
@@ -177,7 +177,7 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
     db.increase_remaining_tokens(
         user_id=user_id,
         tokens_added=successful_payment.total_amount
-        * 6,  # 1 dollar == total amount 100, each dollar 600 tokens
+        * 4,  # 1 dollar == total amount 100, each dollar 400 tokens
     )
 
     await context.bot.send_message(
@@ -302,14 +302,19 @@ async def message_handle(
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
-            previous_conv = [("preivous conversation:",long_term_memory.similarity_search(user_id,incoming_message))]
+            previous_conv = [
+                (
+                    "preivous conversation:",
+                    long_term_memory.similarity_search(user_id, incoming_message),
+                )
+            ]
             (
                 answer,
                 (n_input_tokens, n_output_tokens),
                 not_used,
             ) = await chatgpt_instance.send_message(
                 incoming_message,
-                dialog_messages= previous_conv + dialog_messages,
+                dialog_messages=previous_conv + dialog_messages,
                 chat_mode=chat_mode,
             )
             openAIActualCallEndTime = time.perf_counter()
@@ -351,7 +356,9 @@ async def message_handle(
                 logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
-                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
+                await context.bot.delete_message(
+                    chat_id=current_chat_id, message_id=to_delete.message_id
+                )
                 retry_times = 0
             except telegram.error.BadRequest as error:
                 if str(error).startswith("Message is not modified"):
@@ -366,9 +373,7 @@ async def message_handle(
 
         except Exception as error:
             retry_times += 1
-            error_text = (
-                    f"Something went wrong during completion in message_fn. Reason: {error}, Retry times: {retry_times}"
-                )
+            error_text = f"Something went wrong during completion in message_fn. Reason: {error}, Retry times: {retry_times}"
             if retry_times < 2:
                 logger.critical(error_text)
                 await message_handle(
@@ -378,7 +383,9 @@ async def message_handle(
             else:
                 logger.critical(error_text)
                 retry_times = 0
-                await update.message.reply_text("Hey there, something went wrong. Please try again.")
+                await update.message.reply_text(
+                    "Hey there, something went wrong. Please try again."
+                )
             return
 
     async with user_semaphores[user_id]:
@@ -455,10 +462,10 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     if await is_previous_message_not_answered_yet(update, context):
         return
     user_id = update.message.from_user.id
-    
+
     bot_memory.get_dialog_into_str(user_id)
     long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
-    
+
     bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")
 
@@ -584,7 +591,6 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
     bot_memory.reset_dialog(user_id)
     bot_memory.set_chat_mode(user_id, chat_mode)
-    
 
     await context.bot.send_message(
         update.callback_query.message.chat.id,
