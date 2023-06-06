@@ -93,7 +93,6 @@ async def register_user_if_not_exists(
             first_name=user.first_name,
             last_name=user.last_name,
         )
-        long_term_memory.add_new_user(user_id=user.id)
         bot_memory.create_dialog(user.id)
 
     if user.id not in user_semaphores:

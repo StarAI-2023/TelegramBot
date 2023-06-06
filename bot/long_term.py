@@ -18,13 +18,8 @@ class LongTermMemory():
         #return a langchain Pinecone object with user index
         current_user = str(user_id)
         if user_id not in self.user_to_Pinecone:
-            self.user_to_Pinecone[user_id] = Pinecone(pinecone.Index(current_user),self.embeddings.embed_query,"user_dialog")
+            self.user_to_Pinecone[user_id] = Pinecone(pinecone.Index(config.pinecone_index_celebrityNmae),self.embeddings.embed_query,"user_dialog",current_user)
         return self.user_to_Pinecone[user_id]
-    
-    def add_new_user(self,user_id: int):
-        current_user = str(user_id)
-        pinecone.create_index(current_user, dimension=1536)
-        self.user_to_Pinecone[current_user] = Pinecone(pinecone.Index(current_user),self.embeddings.embed_query,"user_dialog")
         
     def similarity_search(self, user_id: int, query: str):
         functionStartTime = time.perf_counter()
