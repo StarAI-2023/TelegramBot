@@ -180,7 +180,7 @@ class ChatGPT:
 
         # current message
         prompt += f"User: {message}\n"
-        prompt += "Assistant: "
+        prompt += "you said: "
 
         return prompt
 

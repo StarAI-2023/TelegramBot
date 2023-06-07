@@ -19,21 +19,21 @@ class LongTermMemory:
         self.user_to_Pinecone = dict()
         self.embeddings = OpenAIEmbeddings(openai_api_key=config.openai_api_key)
 
-    def _get_user_pinecone(self, user_id: str):
+    def _get_user_pinecone(self, user_namespace: str):
         # return a langchain Pinecone object with user index
-        current_user = str(user_id)
-        if user_id not in self.user_to_Pinecone:
-            self.user_to_Pinecone[user_id] = Pinecone(
+        current_user = str(user_namespace)
+        if user_namespace not in self.user_to_Pinecone:
+            self.user_to_Pinecone[user_namespace] = Pinecone(
                 pinecone.Index(config.pinecone_index_celebrityNmae),
                 self.embeddings.embed_query,
                 "user_dialog",
                 current_user,
             )
-        return self.user_to_Pinecone[user_id]
+        return self.user_to_Pinecone[user_namespace]
 
-    def similarity_search(self, user_id: int, query: str):
+    def similarity_search(self, user_namespace: int, query: str):
         functionStartTime = time.perf_counter()
-        current_user = str(user_id)
+        current_user = str(user_namespace)
         docs = self._get_user_pinecone(current_user).similarity_search(query, k=1)
         functionEndTime = time.perf_counter()
         logger.error(
@@ -41,7 +41,7 @@ class LongTermMemory:
         )
         return [doc.page_content for doc in docs]
 
-    def add_text(self, user_id: int, text):
-        current_user = str(object=user_id)
+    def add_text(self, user_namespace: int, text):
+        current_user = str(object=user_namespace)
         # text = a list of str,  upsert to pinecone individually
         self._get_user_pinecone(current_user).add_texts(text)

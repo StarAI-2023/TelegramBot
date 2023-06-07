@@ -300,7 +300,8 @@ async def message_handle(
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
-            previous_conv = [("preivous conversation:",long_term_memory.similarity_search(user_id,incoming_message))]
+            previous_conv = [("preivous conversation with user:",long_term_memory.similarity_search(user_id,incoming_message))]
+            celerity_background = [("you background:",long_term_memory.similarity_search(config.celebrity_namespace,incoming_message))]
             for i in range(1,4):
                 try:
                     (
@@ -309,7 +310,7 @@ async def message_handle(
                         not_used,
                     ) = await chatgpt_instance.send_message(
                         incoming_message,
-                        dialog_messages= previous_conv + dialog_messages,
+                        dialog_messages= celerity_background + previous_conv + dialog_messages,
                         chat_mode=chat_mode,
                     )
                     break

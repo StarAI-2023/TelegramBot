@@ -19,7 +19,6 @@ gpt_price_per_1000_tokens: 0.02
 whisper_price_per_1_min: 0.006
 
 
-
 # voice clone
 # 11_labs_voice_id: "21m00Tcm4TlvDq8ikWAM" Standard Voice
 11_labs_voice_id: "Xa3HdpkHvIyaVWcu1rmM" # Voice From Shab
@@ -29,3 +28,6 @@ whisper_price_per_1_min: 0.006
 pinecone_api_key: "c6e12d21-2fc1-41c9-9dd4-acf2e0f20cc3"
 pinecone_environment: us-west1-gcp-free
 pinecone_index_celebrityNmae: "idka"
+
+#celebrity namespace
+celebrity_namespace: "xxx"

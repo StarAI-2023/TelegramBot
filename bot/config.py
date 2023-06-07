@@ -30,6 +30,7 @@ voice_clone_id = config_yaml["11_labs_voice_id"]
 pinecone_api_key = config_yaml["pinecone_api_key"]
 pinecone_environment = config_yaml["pinecone_environment"]
 pinecone_index_celebrityNmae = config_yaml["pinecone_index_celebrityNmae"]
+celebrity_namespace = config_yaml["celebrity_namespace"]
 # chat_modes
 with open(config_dir / "chat_modes.yml", "r") as f:
     chat_modes = yaml.safe_load(f)
