@@ -310,7 +310,7 @@ async def message_handle(
                         not_used,
                     ) = await chatgpt_instance.send_message(
                         incoming_message,
-                        dialog_messages= celerity_background + previous_conv + dialog_messages,
+                        dialog_messages= celerity_background + previous_conv + dialog_messages,#TODO: not too long
                         chat_mode=chat_mode,
                     )
                     break
