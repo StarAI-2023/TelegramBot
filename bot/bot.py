@@ -52,7 +52,6 @@ user_semaphores: dict = {}
 user_tasks: dict = {}
 bot_memory: memory.Memory = memory.Memory()
 long_term_memory:  long_term.LongTermMemory = long_term.LongTermMemory()
-retry_times = 0
 
 HELP_MESSAGE = """Commands:
 ⚪ /retry – Regenerate last bot answer
@@ -262,7 +261,6 @@ async def message_handle(
     chat_mode: str | None = bot_memory.get_chat_mode(user_id)
 
     async def message_handle_fn():
-        global retry_times
         dialog_info = bot_memory.get_dialog(user_id)
         dialog_messages, dialog_start_time, dialog_chat_mode = (
             dialog_info["messages"],
@@ -303,15 +301,24 @@ async def message_handle(
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
             previous_conv = [("preivous conversation:",long_term_memory.similarity_search(user_id,incoming_message))]
-            (
-                answer,
-                (n_input_tokens, n_output_tokens),
-                not_used,
-            ) = await chatgpt_instance.send_message(
-                incoming_message,
-                dialog_messages= previous_conv + dialog_messages,
-                chat_mode=chat_mode,
-            )
+            for i in range(1,4):
+                try:
+                    (
+                        answer,
+                        (n_input_tokens, n_output_tokens),
+                        not_used,
+                    ) = await chatgpt_instance.send_message(
+                        incoming_message,
+                        dialog_messages= previous_conv + dialog_messages,
+                        chat_mode=chat_mode,
+                    )
+                    break
+                except Exception as error:
+                    logger.error(
+                        msg=f"OpenAI send_message error: {error}, retry times:{i}"
+                    )
+            else:
+                raise NameError("OpenAI send_message fails 3 times")
             openAIActualCallEndTime = time.perf_counter()
             logger.error(
                 msg=f"OpenAI actual call elapsed time: {openAIActualCallEndTime-openAIActualCallStartTime} seconds."
@@ -352,7 +359,6 @@ async def message_handle(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
                 await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
-                retry_times = 0
             except telegram.error.BadRequest as error:
                 if str(error).startswith("Message is not modified"):
                     logger.critical(msg=f"bad request error with {error}.")
@@ -365,21 +371,11 @@ async def message_handle(
                     )
 
         except Exception as error:
-            retry_times += 1
             error_text = (
-                    f"Something went wrong during completion in message_fn. Reason: {error}, Retry times: {retry_times}"
+                    f"Something went wrong during completion in message_fn. Reason: {error}"
                 )
-            if retry_times < 2:
-                logger.critical(error_text)
-                await message_handle(
-                    update,
-                    context,
-                )
-            else:
-                logger.critical(error_text)
-                retry_times = 0
-                await update.message.reply_text("Hey there, something went wrong. Please try again.")
-            return
+            logger.critical(error_text)
+            await update.message.reply_text("Hey there, something went wrong. Please try again.")
 
     async with user_semaphores[user_id]:
         task = asyncio.create_task(message_handle_fn())
