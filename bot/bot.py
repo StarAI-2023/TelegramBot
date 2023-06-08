@@ -62,6 +62,8 @@ HELP_MESSAGE = """Commands:
 ⚪ /deposit – Add credits to you account
 
 🎤 You can send <b>Voice Messages</b> instead of text
+
+Please select chat mode, default toxic mode.
 """
 
 HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
@@ -297,6 +299,7 @@ async def message_handle(
                 )
                 return
 
+
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
@@ -355,6 +358,7 @@ async def message_handle(
                     logger.critical(f"Current chat id is None. Update: {update}")
 
                 await context.bot.send_voice(chat_id=current_chat_id, voice=audio_file)
+                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
                 functionEndTime = time.perf_counter()
                 logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
@@ -634,10 +638,9 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
             except telegram.error.BadRequest:
                 # answer has invalid characters, so we send it without parse_mode
                 await context.bot.send_message(update.effective_chat.id, message_chunk)
-    except:
-        await context.bot.send_message(
-            update.effective_chat.id, "Some error in error handler"
-        )
+    except Exception as error:
+            error_text = f"Something went wrong during completion. Reason: {error}, update: {update}, context: {context}"
+            logger.error(error_text)
 
 
 async def post_init(application: Application):
