@@ -8,9 +8,10 @@ import tempfile
 from pathlib import Path
 import pydub
 from datetime import datetime
-import openai
 from io import BytesIO
 import time
+
+from typing import List
 
 import telegram
 from telegram import (
@@ -37,15 +38,20 @@ from telegram.constants import ParseMode
 import database
 import voice_clone
 import openai_utils
+import memory
+import long_term
 import config
 
 
 # setup
-db = database.Database()
+
+db: database.Database = database.Database()
 logger = logging.getLogger(__name__)
 voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
+bot_memory: memory.Memory = memory.Memory()
+long_term_memory:  long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
 ⚪ /retry – Regenerate last bot answer
@@ -88,26 +94,10 @@ async def register_user_if_not_exists(
             first_name=user.first_name,
             last_name=user.last_name,
         )
-        db.start_new_dialog(user.id)
-
-    if db.get_user_attribute(user.id, "current_dialog_id") is None:
-        db.start_new_dialog(user.id)
+        bot_memory.create_dialog(user.id)
 
     if user.id not in user_semaphores:
         user_semaphores[user.id] = asyncio.Semaphore(1)
-
-    if db.get_user_attribute(user.id, "current_model") is None:
-        db.set_user_attribute(
-            user.id, "current_model", config.models["available_text_models"][0]
-        )
-
-    # voice message transcription
-    if db.get_user_attribute(user.id, "n_transcribed_seconds") is None:
-        db.set_user_attribute(user.id, "n_transcribed_seconds", 0.0)
-
-    # image generation
-    if db.get_user_attribute(user.id, "n_generated_images") is None:
-        db.set_user_attribute(user.id, "n_generated_images", 0)
 
 
 async def is_bot_mentioned(update: Update, context: CallbackContext) -> bool:
@@ -138,8 +128,7 @@ def createButton(amounts: list):
 async def deposit_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
-    user_id = update.message.from_user.id
-    reply_text = "Please choose the amount you want to deposit. For reference, 300 tokens cost $1.\n\n"
+    reply_text = "Please choose the amount you want to deposit. For reference, 600 tokens cost $1.\n\n"
 
     invoice_choice = []
     invoice_choice.append(createButton(["5", "10", "30"]))
@@ -185,13 +174,11 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
     """
     successful_payment = update.message.successful_payment
     user_id: int = update.message.from_user.id
-    current_model: str = db.get_user_attribute(user_id=user_id, key="current_model")
 
     db.increase_remaining_tokens(
-        user_id,
-        current_model,
-        successful_payment.total_amount
-        * 3,  # 1 dollar == total amount 100, each dollar 300 tokens
+        user_id=user_id,
+        tokens_added=successful_payment.total_amount
+        * 6,  # 1 dollar == total amount 100, each dollar 600 tokens
     )
 
     await context.bot.send_message(
@@ -201,30 +188,23 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
 
 async def start_handle(update: Update, context: CallbackContext) -> None:
     await register_user_if_not_exists(update, context, update.message.from_user)
-    user = update.message.from_user
-    user_id = user.id
-    username = user.first_name
+    user: User = update.message.from_user
 
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
-    db.start_new_dialog(user_id)
-
-    reply_text = f"Hey <b>{username}</b> here, how are you doing?\n\n"
+    reply_text = f"Hey <b>{user.first_name}</b> here, how are you doing?\n\n"
     reply_text += HELP_MESSAGE
-    await update.message.reply_text(reply_text, parse_mode=ParseMode.HTML)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text=reply_text, parse_mode=ParseMode.HTML
+    )
     await show_chat_modes_handle(update, context)
 
 
 async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
 
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
     text = HELP_GROUP_CHAT_MESSAGE.format(bot_username="@" + context.bot.username)
 
@@ -238,22 +218,18 @@ async def retry_handle(update: Update, context: CallbackContext):
         return
 
     user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
-    dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
+    dialog_messages: List[str] = bot_memory.get_dialog(user_id)["messages"]
     if len(dialog_messages) == 0:
         await update.message.reply_text("No message to retry 🤷‍♂️")
         return
 
     last_dialog_message = dialog_messages.pop()
-    db.set_dialog_messages(
-        user_id, dialog_messages, dialog_id=None
-    )  # last message was removed from the context
 
     await message_handle(
         update,
         context,
-        message=last_dialog_message["user"],
+        message=last_dialog_message,
         use_new_dialog_timeout=False,
     )
 
@@ -271,38 +247,40 @@ async def message_handle(
         await edited_message_handle(update, context)
         return
 
-    _message = message or update.message.text
+    incoming_message: str = message or update.message.text
 
     # remove bot mention (in group chats)
     if update.message.chat.type != "private":
-        _message = _message.replace("@" + context.bot.username, "").strip()
+        incoming_message = incoming_message.replace(
+            "@" + context.bot.username, ""
+        ).strip()
 
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context):
         return
 
     user_id: int = update.message.from_user.id
-    chat_mode: str | None = db.get_user_attribute(
-        user_id=user_id, key="current_chat_mode"
-    )
+    chat_mode: str | None = bot_memory.get_chat_mode(user_id)
 
     async def message_handle_fn():
+        dialog_info = bot_memory.get_dialog(user_id)
+        dialog_messages, dialog_start_time, dialog_chat_mode = (
+            dialog_info["messages"],
+            dialog_info["start_time"],
+            dialog_info["chat_mode"],
+        )
+
+        dialog_messages: List[str] = dialog_messages
+        dialog_start_time: datetime = dialog_start_time
+        dialog_chat_mode: str = dialog_chat_mode
         # new dialog timeout
-        if use_new_dialog_timeout:
+        if use_new_dialog_timeout or len(dialog_messages) > 200:
             if (
-                datetime.now() - db.get_user_attribute(user_id, "last_interaction")
-            ).seconds > config.new_dialog_timeout and len(
-                db.get_dialog_messages(user_id)
-            ) > 0:
-                db.start_new_dialog(user_id)
-                await update.message.reply_text(
-                    f"Starting new dialog due to timeout (<b>{config.chat_modes[chat_mode]['name']}</b> mode) ✅",
-                    parse_mode=ParseMode.HTML,
-                )
-        db.set_user_attribute(user_id, "last_interaction", datetime.now())
+                datetime.now() - dialog_start_time
+            ).seconds > config.new_dialog_timeout and len(dialog_messages) > 0:
+                bot_memory.reset_dialog(user_id)
 
         n_input_tokens, n_output_tokens = 0, 0
-        current_model: str | None = db.get_user_attribute(user_id, key="current_model")
         if (db.get_remaining_tokens(user_id=user_id)) <= 0:
             await update.message.reply_text(
                 text="You have no remaining tokens. Please type /deposit to add more tokens."
@@ -313,27 +291,38 @@ async def message_handle(
             to_delete = await update.message.reply_text(text="...")
             await update.message.chat.send_action(action="record_audio")
 
-            if _message is None or len(_message) == 0:
+            if incoming_message is None or len(incoming_message) == 0:
                 # TODO - Change this to voice response
                 await update.message.reply_text(
                     "🥲 You sent <b>empty message</b>. Please, try again!",
                     parse_mode=ParseMode.HTML,
                 )
                 return
-            dialog_messages = db.get_dialog_messages(user_id, dialog_id=None)
+
 
             openAIStartTime = time.perf_counter()
-            chatgpt_instance = openai_utils.ChatGPT(model=current_model)
+            chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
-            (
-                answer,
-                (n_input_tokens, n_output_tokens),
-                n_first_dialog_messages_removed,
-            ) = await chatgpt_instance.send_message(
-                _message,
-                dialog_messages=dialog_messages,
-                chat_mode=chat_mode,
-            )
+            previous_conv = [("preivous conversation with user:",long_term_memory.similarity_search(user_id,incoming_message))]
+            celerity_background = [("you background:",long_term_memory.similarity_search(config.celebrity_namespace,incoming_message))]
+            for i in range(1,4):
+                try:
+                    (
+                        answer,
+                        (n_input_tokens, n_output_tokens),
+                        not_used,
+                    ) = await chatgpt_instance.send_message(
+                        incoming_message,
+                        dialog_messages= celerity_background + previous_conv + dialog_messages,#TODO: not too long
+                        chat_mode=chat_mode,
+                    )
+                    break
+                except Exception as error:
+                    logger.error(
+                        msg=f"OpenAI send_message error: {error}, retry times:{i}"
+                    )
+            else:
+                raise NameError("OpenAI send_message fails 3 times")
             openAIActualCallEndTime = time.perf_counter()
             logger.error(
                 msg=f"OpenAI actual call elapsed time: {openAIActualCallEndTime-openAIActualCallStartTime} seconds."
@@ -346,21 +335,13 @@ async def message_handle(
             )
 
             # update user data
-            new_dialog_message = {
-                "user": _message,
-                "bot": answer,
-                "date": datetime.now(),
-            }
+            bot_memory.add_message(
+                user_id=user_id, human_message=incoming_message, bot_response=answer
+            )
             db.update_n_used_tokens(
                 user_id=user_id,
-                model=current_model,
                 n_input_tokens=n_input_tokens,
                 n_output_tokens=n_output_tokens,
-            )
-            db.set_dialog_messages(
-                user_id,
-                db.get_dialog_messages(user_id, dialog_id=None) + [new_dialog_message],
-                dialog_id=None,
             )
 
             try:
@@ -382,30 +363,24 @@ async def message_handle(
                 logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
-
+                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
             except telegram.error.BadRequest as error:
                 if str(error).startswith("Message is not modified"):
                     logger.critical(msg=f"bad request error with {error}.")
                 else:
-                    logger.critical(msg=f"bad request error with {error}.")
+                    logger.critical(msg=f"bad request erroer with {error}.")
                     await context.bot.send_message(
                         current_chat_id,
                         "Something went wrong, please try again.",
                         parse_mode=ParseMode.HTML,
                     )
 
-        except asyncio.CancelledError:
-            # note: intermediate token updates only work when enable_message_streaming=True (config.yml)
-            db.update_n_used_tokens(
-                user_id, current_model, n_input_tokens, n_output_tokens
-            )
-            raise
-
         except Exception as error:
-            error_text = f"Something went wrong during completion. Reason: {error}"
-            logger.error(error_text)
-            await update.message.reply_text(error_text)
-            return
+            error_text = (
+                    f"Something went wrong during completion in message_fn. Reason: {error}"
+                )
+            logger.critical(error_text)
+            await update.message.reply_text("Hey there, something went wrong. Please try again.")
 
     async with user_semaphores[user_id]:
         task = asyncio.create_task(message_handle_fn())
@@ -448,9 +423,6 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     if await is_previous_message_not_answered_yet(update, context):
         return
 
-    user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
-
     voice = update.message.voice
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_dir = Path(tmp_dir)
@@ -476,13 +448,6 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     text = f"🎤: <i>{transcribed_text}</i>"
     await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
-    # update n_transcribed_seconds
-    db.set_user_attribute(
-        user_id,
-        "n_transcribed_seconds",
-        voice.duration + db.get_user_attribute(user_id, "n_transcribed_seconds"),
-    )
-
     await message_handle(update, context, message=transcribed_text)
 
 
@@ -490,14 +455,15 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
     if await is_previous_message_not_answered_yet(update, context):
         return
-
     user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
-
-    db.start_new_dialog(user_id)
+    
+    bot_memory.get_dialog_into_str(user_id)
+    long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
+    
+    bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")
 
-    chat_mode = db.get_user_attribute(user_id, "current_chat_mode")
+    chat_mode = bot_memory.get_chat_mode(user_id)
     await update.message.reply_text(
         f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML
     )
@@ -507,8 +473,6 @@ async def cancel_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
-
     if user_id in user_tasks:
         task = user_tasks[user_id]
         task.cancel()
@@ -578,9 +542,6 @@ async def show_chat_modes_handle(update: Update, context: CallbackContext):
     if await is_previous_message_not_answered_yet(update, context):
         return
 
-    user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
-
     text, reply_markup = get_chat_mode_menu(0)
     await update.message.reply_text(
         text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
@@ -593,9 +554,6 @@ async def show_chat_modes_callback_handle(update: Update, context: CallbackConte
     )
     if await is_previous_message_not_answered_yet(update.callback_query, context):
         return
-
-    user_id = update.callback_query.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
 
     query = update.callback_query
     await query.answer()
@@ -625,8 +583,9 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
     chat_mode = query.data.split("|")[1]
 
-    db.set_user_attribute(user_id, "current_chat_mode", chat_mode)
-    db.start_new_dialog(user_id)
+    bot_memory.reset_dialog(user_id)
+    bot_memory.set_chat_mode(user_id, chat_mode)
+    
 
     await context.bot.send_message(
         update.callback_query.message.chat.id,
@@ -639,14 +598,9 @@ async def show_balance_handle(update: Update, context: CallbackContext):
     """return n_remaining_output_tokens tokens for the user"""
     await register_user_if_not_exists(update, context, update.message.from_user)
 
-    user_id = update.message.from_user.id
-    db.set_user_attribute(user_id, "last_interaction", datetime.now())
-
-    remaining_token = db.get_remaining_tokens(
-        user_id=user_id
-    )  # TODO: Remove model and not hardcode
+    remaining_token = db.get_remaining_tokens(update.message.from_user.id)
     await update.message.reply_text(
-        text="Here are your remaining tokens: " + str(remaining_token),
+        text=f"<b>{remaining_token}</b> tokens are still available in your account! Need more? Just type <code>/deposit</code> to top up.",
         parse_mode=ParseMode.HTML,
     )
 
@@ -716,10 +670,6 @@ def run_bot() -> None:
 
     # add handlers
     user_filter = filters.ALL
-    if len(config.allowed_telegram_usernames) > 0:
-        usernames = [x for x in config.allowed_telegram_usernames if isinstance(x, str)]
-        user_ids = [x for x in config.allowed_telegram_usernames if isinstance(x, int)]
-        user_filter = filters.User(username=usernames) | filters.User(user_id=user_ids)
 
     application.add_handler(CommandHandler("start", start_handle, filters=user_filter))
 
