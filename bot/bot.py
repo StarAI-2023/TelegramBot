@@ -1,47 +1,45 @@
-import os
-import logging
 import asyncio
-import traceback
 import html
 import json
+import logging
+import os
 import tempfile
-from pathlib import Path
-import pydub
+import time
+import traceback
 from datetime import datetime
 from io import BytesIO
-import time
-
+from pathlib import Path
 from typing import List
 
+import database
+import long_term
+import memory
+import openai_utils
+import pydub
 import telegram
+import voice_clone
 from telegram import (
-    Update,
-    User,
+    BotCommand,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    BotCommand,
     LabeledPrice,
+    Update,
+    User,
 )
+from telegram.constants import ParseMode
 from telegram.ext import (
+    AIORateLimiter,
     Application,
     ApplicationBuilder,
     CallbackContext,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
-    AIORateLimiter,
-    filters,
     PreCheckoutQueryHandler,
+    filters,
 )
-from telegram.constants import ParseMode
 
-import database
-import voice_clone
-import openai_utils
-import memory
-import long_term
 import config
-
 
 # setup
 
@@ -85,8 +83,8 @@ def split_text_into_chunks(text, chunk_size):
 async def register_user_if_not_exists(
     update: Update, context: CallbackContext, user: User
 ) -> None:
-    if not db.check_if_user_exists(user.id):
-        db.add_new_user(
+    if not (await db.check_if_user_exists(user.id)):
+        await db.add_new_user(
             user_id=user.id,
             chat_id=update.message.chat_id,
             username=user.username,
@@ -175,7 +173,7 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
     successful_payment = update.message.successful_payment
     user_id: int = update.message.from_user.id
 
-    db.increase_remaining_tokens(
+    await db.increase_remaining_tokens(
         user_id=user_id,
         tokens_added=successful_payment.total_amount
         * 4,  # 1 dollar == total amount 100, each dollar 400 tokens
@@ -282,7 +280,7 @@ async def message_handle(
                 bot_memory.reset_dialog(user_id)
 
         n_input_tokens, n_output_tokens = 0, 0
-        if (db.get_remaining_tokens(user_id=user_id)) <= 0:
+        if await db.get_remaining_tokens(user_id=user_id) <= 0:
             await update.message.reply_text(
                 text="You have no remaining tokens. Please type /deposit to add more tokens."
             )
@@ -333,7 +331,7 @@ async def message_handle(
             bot_memory.add_message(
                 user_id=user_id, human_message=incoming_message, bot_response=answer
             )
-            db.update_n_used_tokens(
+            await db.update_n_used_tokens(
                 user_id=user_id,
                 n_input_tokens=n_input_tokens,
                 n_output_tokens=n_output_tokens,
@@ -604,7 +602,7 @@ async def show_balance_handle(update: Update, context: CallbackContext):
     """return n_remaining_output_tokens tokens for the user"""
     await register_user_if_not_exists(update, context, update.message.from_user)
 
-    remaining_token = db.get_remaining_tokens(update.message.from_user.id)
+    remaining_token = await db.get_remaining_tokens(update.message.from_user.id)
     await update.message.reply_text(
         text=f"<b>{remaining_token}</b> tokens are still available in your account! Need more? Just type <code>/deposit</code> to top up.",
         parse_mode=ParseMode.HTML,
