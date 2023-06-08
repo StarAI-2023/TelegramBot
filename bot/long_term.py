@@ -24,7 +24,7 @@ class LongTermMemory:
         current_user = str(user_namespace)
         if user_namespace not in self.user_to_Pinecone:
             self.user_to_Pinecone[user_namespace] = Pinecone(
-                pinecone.Index(config.pinecone_index_celebrityNmae),
+                pinecone.Index(config.pinecone_index_name),
                 self.embeddings.embed_query,
                 "user_dialog",
                 current_user,

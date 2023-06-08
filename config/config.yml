@@ -27,7 +27,7 @@ whisper_price_per_1_min: 0.006
 #pinecone
 pinecone_api_key: "c6e12d21-2fc1-41c9-9dd4-acf2e0f20cc3"
 pinecone_environment: us-west1-gcp-free
-pinecone_index_celebrityNmae: "idka"
+pinecone_index_name: "idka"
 
 #celebrity namespace
 celebrity_namespace: "xxx"
