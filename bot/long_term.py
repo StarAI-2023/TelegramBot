@@ -18,13 +18,14 @@ class LongTermMemory:
         )
         self.user_to_Pinecone = dict()
         self.embeddings = OpenAIEmbeddings(openai_api_key=config.openai_api_key)
+        self.index = pinecone.Index(config.pinecone_index_name)
 
     def _get_user_pinecone(self, user_namespace: str):
         # return a langchain Pinecone object with user index
         current_user = str(user_namespace)
         if user_namespace not in self.user_to_Pinecone:
             self.user_to_Pinecone[user_namespace] = Pinecone(
-                pinecone.Index(config.pinecone_index_name),
+                self.index,
                 self.embeddings.embed_query,
                 "user_dialog",
                 current_user,
