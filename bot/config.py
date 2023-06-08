@@ -1,6 +1,7 @@
-import yaml
-import dotenv
 from pathlib import Path
+
+import dotenv
+import yaml
 
 config_dir = Path(__file__).parent.parent.resolve() / "config"
 
@@ -30,6 +31,7 @@ voice_clone_id = config_yaml["11_labs_voice_id"]
 pinecone_api_key = config_yaml["pinecone_api_key"]
 pinecone_environment = config_yaml["pinecone_environment"]
 celebrity_namespace = config_yaml["celebrity_namespace"]
+pinecone_index_name = config_yaml["pinecone_index_name"]
 # chat_modes
 with open(config_dir / "chat_modes.yml", "r") as f:
     chat_modes = yaml.safe_load(f)

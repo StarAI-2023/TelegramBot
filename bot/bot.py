@@ -1,47 +1,45 @@
-import os
-import logging
 import asyncio
-import traceback
 import html
 import json
+import logging
+import os
 import tempfile
-from pathlib import Path
-import pydub
+import time
+import traceback
 from datetime import datetime
 from io import BytesIO
-import time
-
+from pathlib import Path
 from typing import List
 
+import database
+import long_term
+import memory
+import openai_utils
+import pydub
 import telegram
+import voice_clone
 from telegram import (
-    Update,
-    User,
+    BotCommand,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    BotCommand,
     LabeledPrice,
+    Update,
+    User,
 )
+from telegram.constants import ParseMode
 from telegram.ext import (
+    AIORateLimiter,
     Application,
     ApplicationBuilder,
     CallbackContext,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
-    AIORateLimiter,
-    filters,
     PreCheckoutQueryHandler,
+    filters,
 )
-from telegram.constants import ParseMode
 
-import database
-import voice_clone
-import openai_utils
-import memory
-import long_term
 import config
-
 
 # setup
 
@@ -51,7 +49,7 @@ voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
 bot_memory: memory.Memory = memory.Memory()
-long_term_memory:  long_term.LongTermMemory = long_term.LongTermMemory()
+long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
 ⚪ /retry – Regenerate last bot answer
@@ -86,8 +84,8 @@ def split_text_into_chunks(text, chunk_size):
 async def register_user_if_not_exists(
     update: Update, context: CallbackContext, user: User
 ) -> None:
-    if not db.check_if_user_exists(user.id):
-        db.add_new_user(
+    if not (await db.check_if_user_exists(user.id)):
+        await db.add_new_user(
             user_id=user.id,
             chat_id=update.message.chat_id,
             username=user.username,
@@ -175,7 +173,7 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
     successful_payment = update.message.successful_payment
     user_id: int = update.message.from_user.id
 
-    db.increase_remaining_tokens(
+    await db.increase_remaining_tokens(
         user_id=user_id,
         tokens_added=successful_payment.total_amount
         * 6,  # 1 dollar == total amount 100, each dollar 600 tokens
@@ -281,7 +279,7 @@ async def message_handle(
                 bot_memory.reset_dialog(user_id)
 
         n_input_tokens, n_output_tokens = 0, 0
-        if (db.get_remaining_tokens(user_id=user_id)) <= 0:
+        if await db.get_remaining_tokens(user_id=user_id) <= 0:
             await update.message.reply_text(
                 text="You have no remaining tokens. Please type /deposit to add more tokens."
             )
@@ -299,13 +297,24 @@ async def message_handle(
                 )
                 return
 
-
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
-            previous_conv = [("preivous conversation with user:",long_term_memory.similarity_search(user_id,incoming_message))]
-            celerity_background = [("you background:",long_term_memory.similarity_search(config.celebrity_namespace,incoming_message))]
-            for i in range(1,4):
+            previous_conv = [
+                (
+                    "preivous conversation with user:",
+                    long_term_memory.similarity_search(user_id, incoming_message),
+                )
+            ]
+            celerity_background = [
+                (
+                    "you background:",
+                    long_term_memory.similarity_search(
+                        config.celebrity_namespace, incoming_message
+                    ),
+                )
+            ]
+            for i in range(1, 4):
                 try:
                     (
                         answer,
@@ -313,7 +322,9 @@ async def message_handle(
                         not_used,
                     ) = await chatgpt_instance.send_message(
                         incoming_message,
-                        dialog_messages= celerity_background + previous_conv + dialog_messages,#TODO: not too long
+                        dialog_messages=celerity_background
+                        + previous_conv
+                        + dialog_messages,  # TODO: not too long
                         chat_mode=chat_mode,
                     )
                     break
@@ -338,7 +349,7 @@ async def message_handle(
             bot_memory.add_message(
                 user_id=user_id, human_message=incoming_message, bot_response=answer
             )
-            db.update_n_used_tokens(
+            await db.update_n_used_tokens(
                 user_id=user_id,
                 n_input_tokens=n_input_tokens,
                 n_output_tokens=n_output_tokens,
@@ -358,12 +369,13 @@ async def message_handle(
                     logger.critical(f"Current chat id is None. Update: {update}")
 
                 await context.bot.send_voice(chat_id=current_chat_id, voice=audio_file)
-                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
+                await context.bot.delete_message(
+                    chat_id=current_chat_id, message_id=to_delete.message_id
+                )
                 functionEndTime = time.perf_counter()
                 logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
-                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
             except telegram.error.BadRequest as error:
                 if str(error).startswith("Message is not modified"):
                     logger.critical(msg=f"bad request error with {error}.")
@@ -377,10 +389,12 @@ async def message_handle(
 
         except Exception as error:
             error_text = (
-                    f"Something went wrong during completion in message_fn. Reason: {error}"
-                )
+                f"Something went wrong during completion in message_fn. Reason: {error}"
+            )
             logger.critical(error_text)
-            await update.message.reply_text("Hey there, something went wrong. Please try again.")
+            await update.message.reply_text(
+                "Hey there, something went wrong. Please try again."
+            )
 
     async with user_semaphores[user_id]:
         task = asyncio.create_task(message_handle_fn())
@@ -456,10 +470,10 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     if await is_previous_message_not_answered_yet(update, context):
         return
     user_id = update.message.from_user.id
-    
+
     bot_memory.get_dialog_into_str(user_id)
     long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
-    
+
     bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")
 
@@ -585,7 +599,6 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
     bot_memory.reset_dialog(user_id)
     bot_memory.set_chat_mode(user_id, chat_mode)
-    
 
     await context.bot.send_message(
         update.callback_query.message.chat.id,
@@ -598,7 +611,7 @@ async def show_balance_handle(update: Update, context: CallbackContext):
     """return n_remaining_output_tokens tokens for the user"""
     await register_user_if_not_exists(update, context, update.message.from_user)
 
-    remaining_token = db.get_remaining_tokens(update.message.from_user.id)
+    remaining_token = await db.get_remaining_tokens(update.message.from_user.id)
     await update.message.reply_text(
         text=f"<b>{remaining_token}</b> tokens are still available in your account! Need more? Just type <code>/deposit</code> to top up.",
         parse_mode=ParseMode.HTML,
@@ -639,8 +652,8 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
                 # answer has invalid characters, so we send it without parse_mode
                 await context.bot.send_message(update.effective_chat.id, message_chunk)
     except Exception as error:
-            error_text = f"Something went wrong during completion. Reason: {error}, update: {update}, context: {context}"
-            logger.error(error_text)
+        error_text = f"Something went wrong during completion. Reason: {error}, update: {update}, context: {context}"
+        logger.error(error_text)
 
 
 async def post_init(application: Application):
