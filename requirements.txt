@@ -6,7 +6,7 @@ python-dotenv==0.21.0
 pydub==0.25.1
 elevenlabs==0.2.15
 pinecone-client==2.2.1
-langchain==0.0.189
+langchain==0.0.194
 dnspython==2.3.0
 motor==3.1.2
 pymongo==4.3.3
