@@ -229,11 +229,9 @@ async def message_handle(
     user_id: int = message_obj.from_user.id
     
     await register_user_if_not_exists(message_obj.from_user)
-    await is_previous_message_not_answered_yet(user_id=user_id)
-
-    chat_mode: str | None = bot_memory.get_chat_mode(user_id=user_id)
 
     async def message_handle_fn():
+        chat_mode: str | None = bot_memory.get_chat_mode(user_id=user_id)
         dialog_info = bot_memory.get_dialog(user_id)
         dialog_messages, dialog_start_time, dialog_chat_mode = (
             dialog_info["messages"],
@@ -389,7 +387,6 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         return
 
     await register_user_if_not_exists(update.message.from_user)
-    await is_previous_message_not_answered_yet(update.message.from_user.id)
 
     voice = update.message.voice
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -412,9 +409,6 @@ async def voice_message_handle(update: Update, context: CallbackContext):
 
             if transcribed_text is None:
                 transcribed_text = ""
-
-    text = f"🎤: <i>{transcribed_text}</i>"
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
 
     await message_handle(update, context, message=transcribed_text)
 
