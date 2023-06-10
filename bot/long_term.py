@@ -16,26 +16,18 @@ class LongTermMemory:
         pinecone.init(
             api_key=config.pinecone_api_key, environment=config.pinecone_environment
         )
-        self.user_to_Pinecone = dict()
         self.embeddings = OpenAIEmbeddings(openai_api_key=config.openai_api_key)
         self.index = pinecone.Index(config.pinecone_index_name)
-
-    def _get_user_pinecone(self, user_namespace: str):
-        # return a langchain Pinecone object with user index
-        current_user = str(user_namespace)
-        if user_namespace not in self.user_to_Pinecone:
-            self.user_to_Pinecone[user_namespace] = Pinecone(
+        self.Pinecone = Pinecone(
                 self.index,
                 self.embeddings.embed_query,
                 "user_dialog",
-                current_user,
             )
-        return self.user_to_Pinecone[user_namespace]
 
     def similarity_search(self, user_namespace: int, query: str):
         functionStartTime = time.perf_counter()
         current_user = str(user_namespace)
-        docs = self._get_user_pinecone(current_user).similarity_search(query, k=1)
+        docs = self.Pinecone.similarity_search(query, k=1,namespace=current_user)
         functionEndTime = time.perf_counter()
         logger.error(
             msg=f"pinecone similarity_search elapsed time: {functionEndTime-functionStartTime} seconds."
@@ -45,4 +37,4 @@ class LongTermMemory:
     def add_text(self, user_namespace: int, text):
         current_user = str(object=user_namespace)
         # text = a list of str,  upsert to pinecone individually
-        self._get_user_pinecone(current_user).add_texts(text)
+        self.Pinecone.add_texts(text,namespace=current_user)
