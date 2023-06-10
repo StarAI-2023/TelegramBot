@@ -52,7 +52,6 @@ bot_memory: memory.Memory = memory.Memory()
 long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
-⚪ /retry – Regenerate last bot answer
 ⚪ /new – Start new dialog
 ⚪ /mode – Select chat mode
 ⚪ /balance – Show balance
@@ -210,28 +209,6 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
     await update.message.reply_video(config.help_group_chat_video_path)
 
 
-async def retry_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
-
-    user_id = update.message.from_user.id
-
-    dialog_messages: List[str] = bot_memory.get_dialog(user_id)["messages"]
-    if len(dialog_messages) == 0:
-        await update.message.reply_text("No message to retry 🤷‍♂️")
-        return
-
-    last_dialog_message = dialog_messages.pop()
-
-    await message_handle(
-        update,
-        context,
-        message=last_dialog_message,
-        use_new_dialog_timeout=False,
-    )
-
-
 async def message_handle(
     update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True
 ):
@@ -254,8 +231,7 @@ async def message_handle(
         ).strip()
 
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    await is_previous_message_not_answered_yet(update, context)
 
     user_id: int = update.message.from_user.id
     chat_mode: str | None = bot_memory.get_chat_mode(user_id)
@@ -403,7 +379,7 @@ async def message_handle(
         try:
             await task
         except asyncio.CancelledError:
-            await update.message.reply_text("✅ Canceled", parse_mode=ParseMode.HTML)
+            await update.message.reply_text(text="✅ Canceled", parse_mode=ParseMode.HTML)
         else:
             pass
         finally:
@@ -417,15 +393,9 @@ async def is_previous_message_not_answered_yet(
     await register_user_if_not_exists(update, context, update.message.from_user)
 
     user_id = update.message.from_user.id
-    if user_semaphores[user_id].locked():
-        text = "⏳ Please <b>wait</b> for a reply to the previous message\n"
-        text += "Or you can /cancel it"
-        await update.message.reply_text(
-            text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML
-        )
-        return True
-    else:
-        return False
+    await user_semaphores[user_id].acquire()
+    user_semaphores[user_id].release()
+    
 
 
 async def voice_message_handle(update: Update, context: CallbackContext):
@@ -434,8 +404,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
         return
 
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    await is_previous_message_not_answered_yet(update, context)
 
     voice = update.message.voice
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -467,8 +436,7 @@ async def voice_message_handle(update: Update, context: CallbackContext):
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    await is_previous_message_not_answered_yet(update, context)
     user_id = update.message.from_user.id
 
     bot_memory.get_dialog_into_str(user_id)
@@ -553,8 +521,7 @@ def get_chat_mode_menu(page_index: int):
 
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    await is_previous_message_not_answered_yet(update, context)
 
     text, reply_markup = get_chat_mode_menu(0)
     await update.message.reply_text(
@@ -566,8 +533,7 @@ async def show_chat_modes_callback_handle(update: Update, context: CallbackConte
     await register_user_if_not_exists(
         update.callback_query, context, update.callback_query.from_user
     )
-    if await is_previous_message_not_answered_yet(update.callback_query, context):
-        return
+    await is_previous_message_not_answered_yet(update.callback_query, context)
 
     query = update.callback_query
     await query.answer()
@@ -661,7 +627,6 @@ async def post_init(application: Application):
         [
             BotCommand("/new", "Start new dialog"),
             BotCommand("/mode", "Select chat mode"),
-            BotCommand("/retry", "Re-generate response for previous query"),
             BotCommand("/balance", "Show balance"),
             BotCommand("/help", "Show help message"),
             BotCommand("/deposit", "deposit to your account"),
@@ -705,7 +670,6 @@ def run_bot() -> None:
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND & user_filter, message_handle)
     )
-    application.add_handler(CommandHandler("retry", retry_handle, filters=user_filter))
     application.add_handler(
         CommandHandler("new", new_dialog_handle, filters=user_filter)
     )
