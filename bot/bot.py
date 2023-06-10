@@ -229,9 +229,9 @@ async def message_handle(
     user_id: int = message_obj.from_user.id
     
     await register_user_if_not_exists(message_obj.from_user)
-    await is_previous_message_not_answered_yet(user_id)
+    await is_previous_message_not_answered_yet(user_id=user_id)
 
-    chat_mode: str | None = bot_memory.get_chat_mode(user_id)
+    chat_mode: str | None = bot_memory.get_chat_mode(user_id=user_id)
 
     async def message_handle_fn():
         dialog_info = bot_memory.get_dialog(user_id)
@@ -370,7 +370,7 @@ async def message_handle(
             )
 
     async with user_semaphores[user_id]:
-        task = asyncio.create_task(message_handle_fn())
+        task = asyncio.create_task(coro=message_handle_fn())
         user_tasks[user_id] = task
 
         try:
@@ -424,7 +424,7 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     await is_previous_message_not_answered_yet(update.message.from_user.id)
     user_id = update.message.from_user.id
 
-    bot_memory.get_dialog_into_str(user_id)
+    bot_memory.get_dialog_into_str(user_id=user_id)
     long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
 
     bot_memory.reset_dialog(user_id)
@@ -434,19 +434,6 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     await update.message.reply_text(
         f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML
     )
-
-
-async def cancel_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update.message.from_user)
-
-    user_id = update.message.from_user.id
-    if user_id in user_tasks:
-        task = user_tasks[user_id]
-        task.cancel()
-    else:
-        await update.message.reply_text(
-            "<i>Nothing to cancel...</i>", parse_mode=ParseMode.HTML
-        )
 
 
 def get_chat_mode_menu(page_index: int):
@@ -652,10 +639,7 @@ def run_bot() -> None:
     application.add_handler(
         CommandHandler("new", new_dialog_handle, filters=user_filter)
     )
-    application.add_handler(
-        CommandHandler("cancel", cancel_handle, filters=user_filter)
-    )
-
+    
     application.add_handler(
         MessageHandler(filters.VOICE & user_filter, voice_message_handle)
     )
