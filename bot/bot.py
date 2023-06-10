@@ -239,15 +239,16 @@ async def message_handle(
             dialog_info["chat_mode"],
         )
 
-        dialog_messages: List[str] = dialog_messages
+        dialog_messages: str = dialog_messages
         dialog_start_time: datetime = dialog_start_time
         dialog_chat_mode: str = dialog_chat_mode
         # new dialog timeout
-        if use_new_dialog_timeout or len(dialog_messages) > 200:
+        #TODO delete dialog,  when reset write to pinecone 
+        if use_new_dialog_timeout or len(dialog_messages) > 9000:
             if (
                 datetime.now() - dialog_start_time
             ).seconds > config.new_dialog_timeout and len(dialog_messages) > 0:
-                bot_memory.reset_dialog(user_id)
+                bot_memory.reset_dialog(user_id=user_id)
 
         n_input_tokens, n_output_tokens = 0, 0
         if await db.get_remaining_tokens(user_id=user_id) <= 0:
@@ -271,20 +272,10 @@ async def message_handle(
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
-            previous_conv = [
-                (
-                    "preivous conversation with user:",
-                    long_term_memory.similarity_search(user_id, incoming_message),
-                )
-            ]
-            celerity_background = [
-                (
-                    "you background:",
-                    long_term_memory.similarity_search(
-                        config.celebrity_namespace, incoming_message
-                    ),
-                )
-            ]
+            
+            previous_conv = "preivous conversation with user:" + long_term_memory.similarity_search(user_id, incoming_message,topK=2)    
+            celerity_background = "you background: "+ long_term_memory.similarity_search(config.celebrity_namespace, incoming_message,topK=1)
+
             for i in range(1, 4):
                 try:
                     (
@@ -295,7 +286,7 @@ async def message_handle(
                         incoming_message,
                         dialog_messages=celerity_background
                         + previous_conv
-                        + dialog_messages,  # TODO: not too long
+                        + dialog_messages, 
                         chat_mode=chat_mode,
                     )
                     break

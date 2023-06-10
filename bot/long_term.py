@@ -24,15 +24,15 @@ class LongTermMemory:
                 "user_dialog",
             )
 
-    def similarity_search(self, user_namespace: int, query: str):
+    def similarity_search(self, user_namespace: int, query: str, topK: int):
         functionStartTime = time.perf_counter()
         current_user = str(user_namespace)
-        docs = self.Pinecone.similarity_search(query, k=1,namespace=current_user)
+        docs = self.Pinecone.similarity_search(query, k=topK,namespace=current_user)
         functionEndTime = time.perf_counter()
         logger.error(
             msg=f"pinecone similarity_search elapsed time: {functionEndTime-functionStartTime} seconds."
         )
-        return [doc.page_content for doc in docs]
+        return "".join([doc.page_content for doc in docs])
 
     def add_text(self, user_namespace: int, text):
         current_user = str(object=user_namespace)
