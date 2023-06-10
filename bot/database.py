@@ -125,14 +125,12 @@ class Database:
     async def add_new_user(
         self,
         user_id: int,
-        chat_id: int,
         username: str = "",
         first_name: str = "",
         last_name: str = "",
     ):
         user_dict: dict = {
             "_id": user_id,
-            "chat_id": chat_id,
             "username": username,
             "first_name": first_name,
             "last_name": last_name,
