@@ -1,7 +1,7 @@
 telegram_token: "6111930531:AAHRKA-l4B3OCGhAxpU-OzxJuA9MSfy_J-4"
 openai_api_key: "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"
-stripe_token_live: "350862534:LIVE:YWQ3NGVkZjFmMWM4"
-stripe_token_test: "284685063:TEST:NmYyNjY3N2QwOWNl"
+stripe_token: "350862534:LIVE:YWQ3NGVkZjFmMWM4"
+# stripe_token_test: "284685063:TEST:NmYyNjY3N2QwOWNl" # for Test
 use_chatgpt_api: true
 allowed_telegram_usernames: []  # if empty, the bot is available to anyone. pass a username string to allow it and/or user ids as integers
 new_dialog_timeout: 10000  # new dialog starts after timeout (in seconds)
@@ -28,6 +28,11 @@ whisper_price_per_1_min: 0.006
 pinecone_api_key: "c6e12d21-2fc1-41c9-9dd4-acf2e0f20cc3"
 pinecone_environment: us-west1-gcp-free
 pinecone_index_name: "idka"
+pinecone_chunk_size: 2000
+
+#nodejs server
+node_server_password: "fhawjthaj-hthjerahr234oru0ufhgarp324ytp98ayfpsdayfuh4wiu"
+node_server_url: "http://localhost:3000"
 
 #celebrity namespace
 celebrity_namespace: "xxx"

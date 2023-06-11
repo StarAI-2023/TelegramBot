@@ -148,8 +148,7 @@ async def send_invoice_handle(update: Update, context: CallbackContext):
         title="Deposit",
         description=f"deposit {invoice_amount} USD to your account",
         payload="unique invoice id",
-        provider_token=config.stripe_token_live,
-        # provider_token=config.stripe_token_test,
+        provider_token=config.stripe_token,
         currency="USD",
         prices=[
             LabeledPrice(
