@@ -302,14 +302,17 @@ async def message_handle(
             previous_conv = [
                 (
                     "preivous conversation with user:",
-                    long_term_memory.similarity_search(user_id, incoming_message),
+                    long_term_memory.similarity_search(
+                        user_namespace=str(user_id), query=incoming_message
+                    ),
                 )
             ]
             celerity_background = [
                 (
                     "you background:",
                     long_term_memory.similarity_search(
-                        config.celebrity_namespace, incoming_message
+                        user_namespace=config.celebrity_namespace,
+                        query=incoming_message,
                     ),
                 )
             ]
