@@ -21,7 +21,7 @@ class LongTermMemory:
     async def similarity_search(self, user_namespace: int, query: str):
         url = "http://localhost:3000/search"
         payload = {
-            "indexName": "idka",
+            "indexName": "eugenia",
             "query": "Taylor switft",
             "nameSpace": "6041305450",
             "password": "fhawjthaj-hthjerahr234oru0ufhgarp324ytp98ayfpsdayfuh4wiu",

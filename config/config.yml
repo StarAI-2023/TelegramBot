@@ -25,9 +25,9 @@ whisper_price_per_1_min: 0.006
 11_labs_api_key: "7208c024013cf72ca4e7e674942844bb"
 
 #pinecone
-pinecone_api_key: "c6e12d21-2fc1-41c9-9dd4-acf2e0f20cc3"
-pinecone_environment: us-west1-gcp-free
-pinecone_index_name: "idka"
+pinecone_api_key: "24d1478d-5281-491c-bf71-d1255f401c71"
+pinecone_environment: us-west1-gcp
+pinecone_index_name: "eugenia"
 pinecone_chunk_size: 2000
 
 #nodejs server
