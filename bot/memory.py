@@ -41,14 +41,8 @@ class Memory:
         dialog: dict = self.get_dialog(user_id)
         human_message = f"User said: {human_message}\n"
         bot_response = f"You said: {bot_response}\n"
-        if dialog:
-            dialog["messages"] = "".join(
-                [dialog["messages"], human_message, bot_response]
-            )
-        else:
-            raise Exception(
-                f"Failed to add message. No dialog found for user {user_id}"
-            )
+
+        dialog["messages"] = "".join([dialog["messages"], human_message, bot_response])
 
     # reset when mode change
     def reset_dialog(self, user_id: int) -> None:
