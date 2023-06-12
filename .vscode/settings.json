@@ -1,6 +1,66 @@
 {
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
+    "[javascript]": {
+        "editor.defaultFormatter": "HookyQR.beautify"
     },
-    "python.formatting.provider": "none",
+    "editor.accessibilitySupport": "off",
+    "editor.inlineSuggest.enabled": true,
+    "explorer.confirmDelete": false,
+    "go.toolsManagement.autoUpdate": true,
+    "java.configuration.checkProjectSettingsExclusions": false,
+    "javascript.updateImportsOnFileMove.enabled": "always",
+    "jupyter.askForKernelRestart": false,
+    "jupyter.textOutputLimit": 0,
+    "mssql.connections": [
+        {
+            "database": "{{put-database-name-here}}",
+            "password": "",
+            "server": "{{put-server-name-here}}",
+            "user": "{{put-username-here}}"
+        }
+    ],
+    "notebook.cellToolbarLocation": {
+        "default": "right",
+        "jupyter-notebook": "left"
+    },
+    "python.defaultInterpreterPath": "/Users/k.v.stan/opt/anaconda3/envs/X/bin/python",
+    "python.languageServer": "Pylance",
+    "sync.gist": "88deaf0769f1757d87666b36d11dee7e",
+    "tabnine.experimentalAutoImports": true,
+    "terminal.integrated.inheritEnv": false,
+    "workbench.editorAssociations": {
+        "*.ipynb": "jupyter-notebook"
+    },
+    "workbench.iconTheme": "vscode-icons",
+    "terminal.integrated.env.osx": {
+        "FIG_NEW_SESSION": "1"
+    },
+    "[python]": {
+        "editor.formatOnType": true,
+        "editor.defaultFormatter": "ms-python.python"
+    },
+    "github.copilot.enable": {
+        "*": true,
+        "yaml": false,
+        "plaintext": false,
+        "markdown": true
+    },
+    "chatgpt.method": "Browser Auto-login",
+    "python.linting.enabled": true,
+    "redhat.telemetry.enabled": true,
+    "explorer.confirmDragAndDrop": false,
+    "editor.formatOnPaste": true,
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "python.formatting.provider": "black",
+    "editor.defaultFoldingRangeProvider": "ms-python.black-formatter",
+    "window.zoomLevel": 0,
+    "html.format.indentInnerHtml": true,
+    "html.format.indentHandlebars": true,
+    "python.analysis.autoFormatStrings": true,
+    "python.analysis.addImport.exactMatchOnly": true,
+    "python.analysis.inlayHints.callArgumentNames": true,
+    "python.analysis.inlayHints.functionReturnTypes": true,
+    "python.analysis.inlayHints.pytestParameters": true,
+    "python.analysis.inlayHints.variableTypes": true,
+    "workbench.colorCustomizations": {}
 }
