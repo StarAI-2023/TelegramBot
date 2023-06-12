@@ -28,11 +28,12 @@ let client;
 
 // api for similarity search
 app.post("/search", async (req, res) => {
-  const { password, indexName, nameSpace, query } = req.body;
+  const { password, indexName, nameSpace, query, topK } = req.body;
 
-  if (!password || !indexName || !query || !nameSpace) {
+  if (!password || !indexName || !query || !nameSpace || !topK) {
     return res.status(400).json({
-      error: "password, indexName, query, and nameSpace are required fields.",
+      error:
+        "password, indexName, query, nameSpace, and topK are required fields.",
     });
   }
   if (password !== process.env.PASSWORD) {
@@ -46,7 +47,8 @@ app.post("/search", async (req, res) => {
       client,
       indexName,
       nameSpace,
-      query
+      query,
+      topK
     );
     res.status(200).json(result);
   } catch (error) {

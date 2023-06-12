@@ -23,8 +23,9 @@ class LongTermMemory:
         self.chunk_size = config.pinecone_chunk_size
         self.node_server_password = config.node_server_password
         self.node_server_url = config.node_server_url
+        self.session = ClientSession()
 
-    async def similarity_search(self, user_namespace: str, query: str):
+    async def similarity_search(self, user_namespace: str, query: str, topK: int = 1):
         """
         {     How the request should look like:
             "indexName":"eugenia",
@@ -39,27 +40,27 @@ class LongTermMemory:
             "query": query,
             "nameSpace": user_namespace,
             "password": self.node_server_password,
+            "topK": topK,
         }
         headers: dict[str, str] = {"Content-Type": "application/json"}
         searchApiEndPoint = f"{self.node_server_url}/search"
 
         try:
-            async with ClientSession() as session:
-                async with session.post(
-                    url=searchApiEndPoint, headers=headers, data=json.dumps(payload)
-                ) as response:
-                    print(response)
-                    if response.status == 200:
-                        response_json = await response.json()
-                        page_contents: list[str] = [
-                            item["pageContent"] for item in response_json
-                        ]
-                        return page_contents
-                    else:
-                        logger.error(
-                            msg=f"Similarity search failed with error, this is the response: {response}"
-                        )
-                        return None
+            async with self.session.post(
+                url=searchApiEndPoint, headers=headers, data=json.dumps(payload)
+            ) as response:
+                print(response)
+                if response.status == 200:
+                    response_json = await response.json()
+                    page_contents: list[str] = [
+                        item["pageContent"] for item in response_json
+                    ]
+                    return page_contents
+                else:
+                    logger.error(
+                        msg=f"Similarity search failed with error, this is the response: {response}"
+                    )
+                    return None
         except ClientConnectionError:
             logger.error("similarity_search function Connection to Node server failed.")
         except ClientResponseError as error:
@@ -97,22 +98,21 @@ class LongTermMemory:
         upsertApiEndPoint = f"{self.node_server_url}/upsert"
 
         try:
-            async with ClientSession() as session:
-                async with session.post(
-                    url=upsertApiEndPoint,
-                    headers=headers,
-                    data=json.dumps(payload),
-                ) as response:
-                    if response.status == 200:
-                        response_json = await response.json()
-                        return response_json
-                    else:
-                        logger.error(
-                            "Adding text failed with error, status code: %s. Response: %s",
-                            response.status,
-                            response,
-                        )
-                        return None
+            async with self.session.post(
+                url=upsertApiEndPoint,
+                headers=headers,
+                data=json.dumps(payload),
+            ) as response:
+                if response.status == 200:
+                    response_json = await response.json()
+                    return response_json
+                else:
+                    logger.error(
+                        "Adding text failed with error, status code: %s. Response: %s",
+                        response.status,
+                        response,
+                    )
+                    return None
         except ClientConnectionError:
             logger.error("similarity_search function Connection to Node server failed.")
         except ClientResponseError as error:
