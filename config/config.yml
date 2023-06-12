@@ -1,4 +1,4 @@
-telegram_token: "6111930531:AAHRKA-l4B3OCGhAxpU-OzxJuA9MSfy_J-4"
+telegram_token: "6232825098:AAEHSB5cwayPbxK9XqYi-YdQSktydahWBY8"
 openai_api_key: "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"
 stripe_token: "350862534:LIVE:YWQ3NGVkZjFmMWM4"
 # stripe_token_test: "284685063:TEST:NmYyNjY3N2QwOWNl" # for Test
@@ -6,7 +6,7 @@ use_chatgpt_api: true
 allowed_telegram_usernames: []  # if empty, the bot is available to anyone. pass a username string to allow it and/or user ids as integers
 new_dialog_timeout: 10000  # new dialog starts after timeout (in seconds)
 
-#available token for new users before they create an account, this is still a lot because we are outputing audio files 
+#available token for new users before they create an account
 available_output_token_new_user: 300
 
 return_n_generated_images: 1
