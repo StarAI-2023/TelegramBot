@@ -48,9 +48,13 @@ class LongTermMemory:
                 async with session.post(
                     url=searchApiEndPoint, headers=headers, data=json.dumps(payload)
                 ) as response:
+                    print(response)
                     if response.status == 200:
                         response_json = await response.json()
-                        return response_json
+                        page_contents: list[str] = [
+                            item["pageContent"] for item in response_json
+                        ]
+                        return page_contents
                     else:
                         logger.error(
                             msg=f"Similarity search failed with error, this is the response: {response}"
@@ -65,61 +69,59 @@ class LongTermMemory:
         except Exception as error:
             logger.error("similarity_search error occurred: %s", error)
 
-        async def add_text(self, user_namespace: int, text):
-            """
-            How the request should look like:
-            {
-            "indexName":"eugenia",
-            "nameSpace": "6041305450",
+    async def add_text(self, user_namespace: str, text):
+        """
+        How the request should look like:
+        {
+        "indexName":"eugenia",
+        "nameSpace": "6041305450",
+        "chunkSize": 2000,
+        "password" : "password in .env file",
+        "document": {
+            "memoryText": "user said: I am so sad!/n you said: I am sorry to hear that. I love you always!/n"
+            }
+        }
+        the api end point for add_text will be <self.node_server_url/upsert>, and we use post method
+        document is a dict with key "memoryText" and value is a string
+        """
+        payload = {
+            "indexName": self.index_name,
+            "nameSpace": user_namespace,
             "chunkSize": 2000,
-            "password" : "password in .env file",
+            "password": self.node_server_password,
             "document": {
-                "memoryText": "user said: I am so sad!/n you said: I am sorry to hear that. I love you always!/n"
-                }
-            }
-            the api end point for add_text will be <self.node_server_url/upsert>, and we use post method
-            document is a dict with key "memoryText" and value is a string
-            """
-            payload = {
-                "indexName": self.index_name,
-                "nameSpace": str(user_namespace),
-                "chunkSize": 2000,
-                "password": self.node_server_password,
-                "document": {
-                    "memoryText": text
-                },  # TODO:Add meta data to document like timestamps
-            }
-            headers = {"Content-Type": "application/json"}
-            upsertApiEndPoint = f"{self.node_server_url}/upsert"
+                "memoryText": text
+            },  # TODO:Add meta data to document like timestamps
+        }
+        headers = {"Content-Type": "application/json"}
+        upsertApiEndPoint = f"{self.node_server_url}/upsert"
 
-            try:
-                async with ClientSession() as session:
-                    async with session.post(
-                        url=upsertApiEndPoint,
-                        headers=headers,
-                        data=json.dumps(payload),
-                    ) as response:
-                        if response.status == 200:
-                            response_json = await response.json()
-                            return response_json
-                        else:
-                            logger.error(
-                                "Adding text failed with error, status code: %s. Response: %s",
-                                response.status,
-                                response,
-                            )
-                            return None
-            except ClientConnectionError:
-                logger.error(
-                    "similarity_search function Connection to Node server failed."
-                )
-            except ClientResponseError as error:
-                logger.error(
-                    "similarity_search Invalid response from Node server: %s",
-                    error,
-                )
-            except Exception as error:
-                logger.error("similarity_search error occurred: %s", error)
+        try:
+            async with ClientSession() as session:
+                async with session.post(
+                    url=upsertApiEndPoint,
+                    headers=headers,
+                    data=json.dumps(payload),
+                ) as response:
+                    if response.status == 200:
+                        response_json = await response.json()
+                        return response_json
+                    else:
+                        logger.error(
+                            "Adding text failed with error, status code: %s. Response: %s",
+                            response.status,
+                            response,
+                        )
+                        return None
+        except ClientConnectionError:
+            logger.error("similarity_search function Connection to Node server failed.")
+        except ClientResponseError as error:
+            logger.error(
+                "similarity_search Invalid response from Node server: %s",
+                error,
+            )
+        except Exception as error:
+            logger.error("similarity_search error occurred: %s", error)
 
 
 # class LongTermMemory:

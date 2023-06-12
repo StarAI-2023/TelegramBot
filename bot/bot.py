@@ -18,26 +18,13 @@ import openai_utils
 import pydub
 import telegram
 import voice_clone
-from telegram import (
-    BotCommand,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    LabeledPrice,
-    Update,
-    User,
-)
+from telegram import (BotCommand, InlineKeyboardButton, InlineKeyboardMarkup,
+                      LabeledPrice, Update, User)
 from telegram.constants import ParseMode
-from telegram.ext import (
-    AIORateLimiter,
-    Application,
-    ApplicationBuilder,
-    CallbackContext,
-    CallbackQueryHandler,
-    CommandHandler,
-    MessageHandler,
-    PreCheckoutQueryHandler,
-    filters,
-)
+from telegram.ext import (AIORateLimiter, Application, ApplicationBuilder,
+                          CallbackContext, CallbackQueryHandler,
+                          CommandHandler, MessageHandler,
+                          PreCheckoutQueryHandler, filters)
 
 import config
 
@@ -302,7 +289,7 @@ async def message_handle(
             previous_conv = [
                 (
                     "preivous conversation with user:",
-                    long_term_memory.similarity_search(
+                    await long_term_memory.similarity_search(
                         user_namespace=str(user_id), query=incoming_message
                     ),
                 )
@@ -310,12 +297,15 @@ async def message_handle(
             celerity_background = [
                 (
                     "you background:",
-                    long_term_memory.similarity_search(
+                    await long_term_memory.similarity_search(
                         user_namespace=config.celebrity_namespace,
                         query=incoming_message,
                     ),
                 )
             ]
+            print(celerity_background)
+            print(previous_conv)
+
             for i in range(1, 4):
                 try:
                     (
@@ -474,7 +464,7 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
 
     bot_memory.get_dialog_into_str(user_id)
-    long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
+    await long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
 
     bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")

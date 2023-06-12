@@ -32,7 +32,7 @@ celebrity_namespace = config_yaml["celebrity_namespace"]
 pinecone_index_name = config_yaml["pinecone_index_name"]
 pinecone_chunk_size = config_yaml["pinecone_chunk_size"]
 node_server_password = config_yaml["node_server_password"]
-noder_server_url = config_yaml["node_server_url"]
+node_server_url = config_yaml["node_server_url"]
 # chat_modes
 with open(config_dir / "chat_modes.yml", "r") as f:
     chat_modes = yaml.safe_load(f)
