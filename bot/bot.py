@@ -271,12 +271,15 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
 
             previous_conv = "preivous conversation with user:" + str(
                 await long_term_memory.similarity_search(
-                    user_id, incoming_message, topK=2
+                    user_namespace=user_id, query=incoming_message, topK=2
                 )
             )
-            celerity_background = "you background: " + str(
+
+            celerity_background = "your background: " + str(
                 await long_term_memory.similarity_search(
-                    config.celebrity_namespace, incoming_message, topK=1
+                    user_namespace=config.celebrity_namespace,
+                    query=incoming_message,
+                    topK=1,
                 )
             )
 
@@ -414,8 +417,9 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     await is_previous_message_not_answered_yet(update.message.from_user.id)
     user_id = update.message.from_user.id
 
-    bot_memory.get_dialog_into_str(user_id=user_id)
-    long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
+    await long_term_memory.add_text(
+        user_namespace=user_id, text=bot_memory.get_conversation_history(user_id)
+    )
 
     bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")

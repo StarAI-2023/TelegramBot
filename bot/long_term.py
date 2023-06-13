@@ -1,12 +1,9 @@
+# pylint: disable=W0105
+
 import json
 import logging
 
-from aiohttp import (
-    ClientConnectionError,
-    ClientError,
-    ClientResponseError,
-    ClientSession,
-)
+from aiohttp import ClientConnectionError, ClientResponseError, ClientSession
 
 import config
 
@@ -25,7 +22,9 @@ class LongTermMemory:
         self.node_server_url = config.node_server_url
         self.session = ClientSession()
 
-    async def similarity_search(self, user_namespace: str, query: str, topK: int = 1):
+    async def similarity_search(
+        self, user_namespace: int, query: str, topK: int = 2
+    ) -> list[str]:
         """
         {     How the request should look like:
             "indexName":"eugenia",
@@ -33,14 +32,33 @@ class LongTermMemory:
             "nameSpace": "6041305450",
             "password" : "password in .env file"
         }
+
         the api end point for search will be <self.node_server_url/search>, and we use post method
+
+        This is example response.text() from the node server:
+        results [
+            Document {
+                pageContent: "User said: what's our secret code\n" +
+                "You said: Hey there! I'm doing great, how about you? I was just thinking about the secret code we came up with. It's so unique and special to us! I love that we have something just between the two of us.\n" +
+                'User said: remember our secret code is doggy style\n' +
+                "You said: Ha ha, that's right! I totally forgot. That's really funny! I love how we can joke around like that with each other. It's one of the things I love about us.",
+                metadata: { 'loc.lines.from': 1, 'loc.lines.to': 4 }
+            }
+        ]
+
+        response.json() looks like:
+        [{'pageContent':
+            "User said: what's our secret code\nYou said: Hey there! I'm doing great, how about you? I was just thinking about the secret code we came up with. It's so unique and special to us!
+            I love that we have something just between the two of us.\nUser said: remember our secret code is doggy style\nYou said: Ha ha, that's right! I totally forgot. That's really funny! I love how we can joke around like that with each other.
+            It's one of the things I love about us.",
+        'metadata': {'loc.lines.from': 1, 'loc.lines.to': 4}}]
         """
         payload: dict[str, str] = {
-            "indexName": self.index_name,
-            "query": query,
-            "nameSpace": user_namespace,
-            "password": self.node_server_password,
-            "topK": topK,
+            "indexName": str(self.index_name),
+            "query": str(query),
+            "nameSpace": str(user_namespace),
+            "password": str(self.node_server_password),
+            "topK": str(topK),
         }
         headers: dict[str, str] = {"Content-Type": "application/json"}
         searchApiEndPoint = f"{self.node_server_url}/search"
@@ -49,13 +67,9 @@ class LongTermMemory:
             async with self.session.post(
                 url=searchApiEndPoint, headers=headers, data=json.dumps(payload)
             ) as response:
-                print(response)
                 if response.status == 200:
-                    response_json = await response.json()
-                    page_contents: list[str] = [
-                        item["pageContent"] for item in response_json
-                    ]
-                    return page_contents
+                    response = await response.json()
+                    return [document["pageContent"] for document in response]
                 else:
                     logger.error(
                         msg=f"Similarity search failed with error, this is the response: {response}"
@@ -70,7 +84,7 @@ class LongTermMemory:
         except Exception as error:
             logger.error("similarity_search error occurred: %s", error)
 
-    async def add_text(self, user_namespace: str, text):
+    async def add_text(self, user_namespace: int, text: str) -> bool:
         """
         How the request should look like:
         {
@@ -86,10 +100,10 @@ class LongTermMemory:
         document is a dict with key "memoryText" and value is a string
         """
         payload = {
-            "indexName": self.index_name,
-            "nameSpace": user_namespace,
+            "indexName": str(self.index_name),
+            "nameSpace": str(user_namespace),
             "chunkSize": 2000,
-            "password": self.node_server_password,
+            "password": str(self.node_server_password),
             "document": {
                 "memoryText": text
             },  # TODO:Add meta data to document like timestamps
@@ -104,15 +118,14 @@ class LongTermMemory:
                 data=json.dumps(payload),
             ) as response:
                 if response.status == 200:
-                    response_json = await response.json()
-                    return response_json
+                    return True
                 else:
                     logger.error(
                         "Adding text failed with error, status code: %s. Response: %s",
                         response.status,
                         response,
                     )
-                    return None
+                    return False
         except ClientConnectionError:
             logger.error("similarity_search function Connection to Node server failed.")
         except ClientResponseError as error:
