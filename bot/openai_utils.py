@@ -24,7 +24,7 @@ class ChatGPT:
         }, f"Unknown model: {model}"
         self.model = model
 
-    async def send_message(self, message, dialog_messages=[], chat_mode="Shab"):
+    async def send_message(self, message, dialog_messages="", chat_mode="Shab"):
         """
         Sends a message to the chatbot model for generating a response.
 
@@ -172,14 +172,14 @@ class ChatGPT:
         prompt = config.chat_modes[chat_mode]["prompt_start"]
         prompt += "\n\n"
         # add chat context
-        if len(dialog_messages) > 0:
-            prompt += "Chat:\n"
-            for user_message, ai_response in dialog_messages:
-                prompt += f"{user_message}\n"
-                prompt += f"{ai_response}\n"
+        # if len(dialog_messages) > 0:
+        #     prompt += "Chat:\n"
+        #     for user_message, ai_response in dialog_messages:
+        #         prompt += f"{user_message}\n"
+        #         prompt += f"{ai_response}\n"
 
         # current message
-        prompt += f"User: {message}\n"
+        prompt += f"{dialog_messages}\nUser: {message}\n"
         prompt += "you said: "
 
         return prompt

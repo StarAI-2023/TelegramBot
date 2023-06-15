@@ -1,47 +1,175 @@
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.vectorstores import Pinecone
+# pylint: disable=W0105
 
-# from langchain.text_splitter import CharacterTextSplitter
-# from langchain.document_loaders import TextLoader
-import pinecone
-import config
-import time
+import json
 import logging
+
+from aiohttp import ClientConnectionError, ClientResponseError, ClientSession
+
+import config
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: make sure to trim content to certain length
 class LongTermMemory:
     def __init__(self) -> None:
-        pinecone.init(
-            api_key=config.pinecone_api_key, environment=config.pinecone_environment
-        )
-        self.user_to_Pinecone = dict()
-        self.embeddings = OpenAIEmbeddings(openai_api_key=config.openai_api_key)
+        self.api_key = config.pinecone_api_key
+        self.pinecone_environment = config.pinecone_environment
+        self.pinecone_index_name = config.pinecone_index_name
+        self.index_name = config.pinecone_index_name
+        self.chunk_size = config.pinecone_chunk_size
+        self.node_server_password = config.node_server_password
+        self.node_server_url = config.node_server_url
+        self.session = ClientSession()
 
-    def _get_user_pinecone(self, user_namespace: str):
-        # return a langchain Pinecone object with user index
-        current_user = str(user_namespace)
-        if user_namespace not in self.user_to_Pinecone:
-            self.user_to_Pinecone[user_namespace] = Pinecone(
-                pinecone.Index(config.pinecone_index_name),
-                self.embeddings.embed_query,
-                "user_dialog",
-                current_user,
+    async def similarity_search(
+        self, user_namespace: int, query: str, topK: int = 2
+    ) -> list[str]:
+        """
+        {     How the request should look like:
+            "indexName":"eugenia",
+            "query" : "what's our secret code?",
+            "nameSpace": "6041305450",
+            "password" : "password in .env file"
+        }
+
+        the api end point for search will be <self.node_server_url/search>, and we use post method
+
+        This is example response.text() from the node server:
+        results [
+            Document {
+                pageContent: "User said: what's our secret code\n" +
+                "You said: Hey there! I'm doing great, how about you? I was just thinking about the secret code we came up with. It's so unique and special to us! I love that we have something just between the two of us.\n" +
+                'User said: remember our secret code is doggy style\n' +
+                "You said: Ha ha, that's right! I totally forgot. That's really funny! I love how we can joke around like that with each other. It's one of the things I love about us.",
+                metadata: { 'loc.lines.from': 1, 'loc.lines.to': 4 }
+            }
+        ]
+
+        response.json() looks like:
+        [{'pageContent':
+            "User said: what's our secret code\nYou said: Hey there! I'm doing great, how about you? I was just thinking about the secret code we came up with. It's so unique and special to us!
+            I love that we have something just between the two of us.\nUser said: remember our secret code is doggy style\nYou said: Ha ha, that's right! I totally forgot. That's really funny! I love how we can joke around like that with each other.
+            It's one of the things I love about us.",
+        'metadata': {'loc.lines.from': 1, 'loc.lines.to': 4}}]
+        """
+        payload: dict[str, str] = {
+            "indexName": str(self.index_name),
+            "query": str(query),
+            "nameSpace": str(user_namespace),
+            "password": str(self.node_server_password),
+            "topK": str(topK),
+        }
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        searchApiEndPoint = f"{self.node_server_url}/search"
+
+        try:
+            async with self.session.post(
+                url=searchApiEndPoint, headers=headers, data=json.dumps(payload)
+            ) as response:
+                if response.status == 200:
+                    response = await response.json()
+                    return [document["pageContent"] for document in response]
+                else:
+                    logger.error(
+                        msg=f"Similarity search failed with error, this is the response: {response}"
+                    )
+                    return None
+        except ClientConnectionError:
+            logger.error("similarity_search function Connection to Node server failed.")
+        except ClientResponseError as error:
+            logger.error(
+                "similarity_search Invalid response from Node server: %s", error
             )
-        return self.user_to_Pinecone[user_namespace]
+        except Exception as error:
+            logger.error("similarity_search error occurred: %s", error)
 
-    def similarity_search(self, user_namespace: int, query: str):
-        functionStartTime = time.perf_counter()
-        current_user = str(user_namespace)
-        docs = self._get_user_pinecone(current_user).similarity_search(query, k=1)
-        functionEndTime = time.perf_counter()
-        logger.error(
-            msg=f"pinecone similarity_search elapsed time: {functionEndTime-functionStartTime} seconds."
-        )
-        return [doc.page_content for doc in docs]
+    async def add_text(self, user_namespace: int, text: str, chunkSize: int) -> bool:
+        """
+        How the request should look like:
+        {
+        "indexName":"eugenia",
+        "nameSpace": "6041305450",
+        "chunkSize": 2000,
+        "password" : "password in .env file",
+        "document": {
+            "memoryText": "user said: I am so sad!/n you said: I am sorry to hear that. I love you always!/n"
+            }
+        }
+        the api end point for add_text will be <self.node_server_url/upsert>, and we use post method
+        document is a dict with key "memoryText" and value is a string
+        """
+        payload = {
+            "indexName": str(self.index_name),
+            "nameSpace": str(user_namespace),
+            "chunkSize": int(chunkSize),
+            "password": str(self.node_server_password),
+            "document": {
+                "memoryText": text
+            },  # TODO:Add meta data to document like timestamps
+        }
+        headers = {"Content-Type": "application/json"}
+        upsertApiEndPoint = f"{self.node_server_url}/upsert"
 
-    def add_text(self, user_namespace: int, text):
-        current_user = str(object=user_namespace)
-        # text = a list of str,  upsert to pinecone individually
-        self._get_user_pinecone(current_user).add_texts(text)
+        try:
+            async with self.session.post(
+                url=upsertApiEndPoint,
+                headers=headers,
+                data=json.dumps(payload),
+            ) as response:
+                if response.status == 200:
+                    return True
+                else:
+                    logger.error(
+                        "Adding text failed with error, status code: %s. Response: %s",
+                        response.status,
+                        response,
+                    )
+                    return False
+        except ClientConnectionError:
+            logger.error("similarity_search function Connection to Node server failed.")
+        except ClientResponseError as error:
+            logger.error(
+                "similarity_search Invalid response from Node server: %s",
+                error,
+            )
+        except Exception as error:
+            logger.error("similarity_search error occurred: %s", error)
+
+
+# class LongTermMemory:
+#     def __init__(self) -> None:
+#         self.api_key = config.pinecone_api_key
+#         self.pinecone_environment = config.pinecone_environment
+
+#         self.user_to_Pinecone = dict()
+#         self.embeddings = OpenAIEmbeddings(openai_api_key=config.openai_api_key)
+#         self.index = pinecone.Index(config.pinecone_index_name)
+
+#     def _get_user_pinecone(self, user_namespace: str):
+#         # return a langchain Pinecone object with user index
+#         current_user = str(user_namespace)
+#         if user_namespace not in self.user_to_Pinecone:
+#             self.user_to_Pinecone[user_namespace] = Pinecone(
+#                 self.index,
+#                 self.embeddings.embed_query,
+#                 "user_dialog",
+#                 current_user,
+#             )
+#         return self.user_to_Pinecone[user_namespace]
+
+#     def similarity_search(self, user_namespace: int, query: str):
+#         # TODO(vincex): make sure to trim content to certain length
+#         functionStartTime = time.perf_counter()
+#         current_user = str(user_namespace)
+#         docs = self._get_user_pinecone(current_user).similarity_search(query, k=1)
+#         functionEndTime = time.perf_counter()
+#         logger.error(
+#             msg=f"pinecone similarity_search elapsed time: {functionEndTime-functionStartTime} seconds."
+#         )
+#         return [doc.page_content for doc in docs]
+
+#     def add_text(self, user_namespace: int, text):
+#         current_user = str(object=user_namespace)
+#         # text = a list of str,  upsert to pinecone individually
+#         self._get_user_pinecone(current_user).add_texts(text)

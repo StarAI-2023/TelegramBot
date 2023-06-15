@@ -1,47 +1,45 @@
-import os
-import logging
 import asyncio
-import traceback
 import html
 import json
+import logging
+import os
 import tempfile
-from pathlib import Path
-import pydub
+import time
+import traceback
 from datetime import datetime
 from io import BytesIO
-import time
-
+from pathlib import Path
 from typing import List
 
+import database
+import long_term
+import memory
+import openai_utils
+import pydub
 import telegram
+import voice_clone
 from telegram import (
-    Update,
-    User,
+    BotCommand,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    BotCommand,
     LabeledPrice,
+    Update,
+    User,
 )
+from telegram.constants import ParseMode
 from telegram.ext import (
+    AIORateLimiter,
     Application,
     ApplicationBuilder,
     CallbackContext,
+    CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
-    AIORateLimiter,
-    filters,
     PreCheckoutQueryHandler,
+    filters,
 )
-from telegram.constants import ParseMode
 
-import database
-import voice_clone
-import openai_utils
-import memory
-import long_term
 import config
-
 
 # setup
 
@@ -51,10 +49,9 @@ voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
 bot_memory: memory.Memory = memory.Memory()
-long_term_memory:  long_term.LongTermMemory = long_term.LongTermMemory()
+long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
-⚪ /retry – Regenerate last bot answer
 ⚪ /new – Start new dialog
 ⚪ /mode – Select chat mode
 ⚪ /balance – Show balance
@@ -83,13 +80,10 @@ def split_text_into_chunks(text, chunk_size):
         yield text[i : i + chunk_size]
 
 
-async def register_user_if_not_exists(
-    update: Update, context: CallbackContext, user: User
-) -> None:
-    if not db.check_if_user_exists(user.id):
-        db.add_new_user(
+async def register_user_if_not_exists(user: User) -> None:
+    if not (await db.check_if_user_exists(user_id=user.id)):
+        await db.add_new_user(
             user_id=user.id,
-            chat_id=update.message.chat_id,
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
@@ -119,6 +113,11 @@ async def is_bot_mentioned(update: Update, context: CallbackContext) -> bool:
         return False
 
 
+async def is_previous_message_not_answered_yet(user_id):
+    await user_semaphores[user_id].acquire()
+    user_semaphores[user_id].release()
+
+
 def createButton(amounts: list):
     return [
         InlineKeyboardButton(x, callback_data=f"deposit|{x}", pay=True) for x in amounts
@@ -126,7 +125,7 @@ def createButton(amounts: list):
 
 
 async def deposit_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_exists(update.message.from_user)
 
     reply_text = "Please choose the amount you want to deposit. For reference, 600 tokens cost $1.\n\n"
 
@@ -150,8 +149,7 @@ async def send_invoice_handle(update: Update, context: CallbackContext):
         title="Deposit",
         description=f"deposit {invoice_amount} USD to your account",
         payload="unique invoice id",
-        provider_token=config.stripe_token_live,
-        # provider_token=config.stripe_token_test,
+        provider_token=config.stripe_token,
         currency="USD",
         prices=[
             LabeledPrice(
@@ -175,7 +173,7 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
     successful_payment = update.message.successful_payment
     user_id: int = update.message.from_user.id
 
-    db.increase_remaining_tokens(
+    await db.increase_remaining_tokens(
         user_id=user_id,
         tokens_added=successful_payment.total_amount
         * 6,  # 1 dollar == total amount 100, each dollar 600 tokens
@@ -187,7 +185,7 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
 
 
 async def start_handle(update: Update, context: CallbackContext) -> None:
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_exists(update.message.from_user)
     user: User = update.message.from_user
 
     reply_text = f"Hey <b>{user.first_name}</b> here, how are you doing?\n\n"
@@ -199,12 +197,12 @@ async def start_handle(update: Update, context: CallbackContext) -> None:
 
 
 async def help_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_exists(update.message.from_user)
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
 
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_exists(update.message.from_user)
 
     text = HELP_GROUP_CHAT_MESSAGE.format(bot_username="@" + context.bot.username)
 
@@ -212,57 +210,27 @@ async def help_group_chat_handle(update: Update, context: CallbackContext):
     await update.message.reply_video(config.help_group_chat_video_path)
 
 
-async def retry_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
-
-    user_id = update.message.from_user.id
-
-    dialog_messages: List[str] = bot_memory.get_dialog(user_id)["messages"]
-    if len(dialog_messages) == 0:
-        await update.message.reply_text("No message to retry 🤷‍♂️")
-        return
-
-    last_dialog_message = dialog_messages.pop()
-
-    await message_handle(
-        update,
-        context,
-        message=last_dialog_message,
-        use_new_dialog_timeout=False,
-    )
-
-
-async def message_handle(
-    update: Update, context: CallbackContext, message=None, use_new_dialog_timeout=True
-):
+async def message_handle(update: Update, context: CallbackContext, message=None):
     # check if bot was mentioned (for group chats)
     functionStartTime = time.perf_counter()
     if not await is_bot_mentioned(update, context):
         return
 
-    # check if message is edited
-    if update.edited_message is not None:
-        await edited_message_handle(update, context)
-        return
-
-    incoming_message: str = message or update.message.text
+    message_obj = update.edited_message or update.message
+    incoming_message: str = message or message_obj.text
 
     # remove bot mention (in group chats)
-    if update.message.chat.type != "private":
+    if message_obj.chat.type != "private":
         incoming_message = incoming_message.replace(
             "@" + context.bot.username, ""
         ).strip()
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    user_id: int = message_obj.from_user.id
 
-    user_id: int = update.message.from_user.id
-    chat_mode: str | None = bot_memory.get_chat_mode(user_id)
+    await register_user_if_not_exists(message_obj.from_user)
 
     async def message_handle_fn():
+        chat_mode: str | None = bot_memory.get_chat_mode(user_id=user_id)
         dialog_info = bot_memory.get_dialog(user_id)
         dialog_messages, dialog_start_time, dialog_chat_mode = (
             dialog_info["messages"],
@@ -270,42 +238,52 @@ async def message_handle(
             dialog_info["chat_mode"],
         )
 
-        dialog_messages: List[str] = dialog_messages
+        dialog_messages: str = dialog_messages
         dialog_start_time: datetime = dialog_start_time
         dialog_chat_mode: str = dialog_chat_mode
         # new dialog timeout
-        if use_new_dialog_timeout or len(dialog_messages) > 200:
-            if (
-                datetime.now() - dialog_start_time
-            ).seconds > config.new_dialog_timeout and len(dialog_messages) > 0:
-                bot_memory.reset_dialog(user_id)
+        # TODO delete dialog,  when reset write to pinecone
+        if len(dialog_messages) > 9000:
+            bot_memory.reset_dialog(user_id=user_id)
 
         n_input_tokens, n_output_tokens = 0, 0
-        if (db.get_remaining_tokens(user_id=user_id)) <= 0:
-            await update.message.reply_text(
+        if await db.get_remaining_tokens(user_id=user_id) <= 0:
+            await message_obj.reply_text(
                 text="You have no remaining tokens. Please type /deposit to add more tokens."
             )
             return
         try:  # in case of CancelledError
             # send use that action showing bot is talking and recording audio
-            to_delete = await update.message.reply_text(text="...")
-            await update.message.chat.send_action(action="record_audio")
+            to_delete = await message_obj.reply_text(text="...")
+            await message_obj.chat.send_action(action="record_audio")
 
             if incoming_message is None or len(incoming_message) == 0:
                 # TODO - Change this to voice response
-                await update.message.reply_text(
+                await message_obj.reply_text(
                     "🥲 You sent <b>empty message</b>. Please, try again!",
                     parse_mode=ParseMode.HTML,
                 )
                 return
 
-
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
-            previous_conv = [("preivous conversation with user:",long_term_memory.similarity_search(user_id,incoming_message))]
-            celerity_background = [("you background:",long_term_memory.similarity_search(config.celebrity_namespace,incoming_message))]
-            for i in range(1,4):
+
+            previous_conv = "preivous conversation with user:" + str(
+                await long_term_memory.similarity_search(
+                    user_namespace=user_id, query=incoming_message, topK=2
+                )
+            )
+
+            celerity_background = "your background: " + str(
+                await long_term_memory.similarity_search(
+                    user_namespace=config.celebrity_namespace,
+                    query=incoming_message,
+                    topK=1,
+                )
+            )
+
+            for i in range(1, 4):
                 try:
                     (
                         answer,
@@ -313,7 +291,9 @@ async def message_handle(
                         not_used,
                     ) = await chatgpt_instance.send_message(
                         incoming_message,
-                        dialog_messages= celerity_background + previous_conv + dialog_messages,#TODO: not too long
+                        dialog_messages=celerity_background
+                        + previous_conv
+                        + dialog_messages,
                         chat_mode=chat_mode,
                     )
                     break
@@ -338,7 +318,7 @@ async def message_handle(
             bot_memory.add_message(
                 user_id=user_id, human_message=incoming_message, bot_response=answer
             )
-            db.update_n_used_tokens(
+            await db.update_n_used_tokens(
                 user_id=user_id,
                 n_input_tokens=n_input_tokens,
                 n_output_tokens=n_output_tokens,
@@ -358,12 +338,13 @@ async def message_handle(
                     logger.critical(f"Current chat id is None. Update: {update}")
 
                 await context.bot.send_voice(chat_id=current_chat_id, voice=audio_file)
-                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
+                await context.bot.delete_message(
+                    chat_id=current_chat_id, message_id=to_delete.message_id
+                )
                 functionEndTime = time.perf_counter()
                 logger.error(
                     msg=f"Function elapsed time: {functionEndTime-functionStartTime} seconds."
                 )
-                await context.bot.delete_message(chat_id=current_chat_id,message_id=to_delete.message_id)
             except telegram.error.BadRequest as error:
                 if str(error).startswith("Message is not modified"):
                     logger.critical(msg=f"bad request error with {error}.")
@@ -377,19 +358,21 @@ async def message_handle(
 
         except Exception as error:
             error_text = (
-                    f"Something went wrong during completion in message_fn. Reason: {error}"
-                )
+                f"Something went wrong during completion in message_fn. Reason: {error}"
+            )
             logger.critical(error_text)
-            await update.message.reply_text("Hey there, something went wrong. Please try again.")
+            await message_obj.reply_text(
+                "Hey there, something went wrong. Please try again."
+            )
 
     async with user_semaphores[user_id]:
-        task = asyncio.create_task(message_handle_fn())
+        task = asyncio.create_task(coro=message_handle_fn())
         user_tasks[user_id] = task
 
         try:
             await task
         except asyncio.CancelledError:
-            await update.message.reply_text("✅ Canceled", parse_mode=ParseMode.HTML)
+            await message_obj.reply_text(text="✅ Canceled", parse_mode=ParseMode.HTML)
         else:
             pass
         finally:
@@ -397,31 +380,12 @@ async def message_handle(
                 del user_tasks[user_id]
 
 
-async def is_previous_message_not_answered_yet(
-    update: Update, context: CallbackContext
-):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-
-    user_id = update.message.from_user.id
-    if user_semaphores[user_id].locked():
-        text = "⏳ Please <b>wait</b> for a reply to the previous message\n"
-        text += "Or you can /cancel it"
-        await update.message.reply_text(
-            text, reply_to_message_id=update.message.id, parse_mode=ParseMode.HTML
-        )
-        return True
-    else:
-        return False
-
-
 async def voice_message_handle(update: Update, context: CallbackContext):
     # check if bot was mentioned (for group chats)
     if not await is_bot_mentioned(update, context):
         return
 
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    await register_user_if_not_exists(update.message.from_user)
 
     voice = update.message.voice
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -445,21 +409,18 @@ async def voice_message_handle(update: Update, context: CallbackContext):
             if transcribed_text is None:
                 transcribed_text = ""
 
-    text = f"🎤: <i>{transcribed_text}</i>"
-    await update.message.reply_text(text, parse_mode=ParseMode.HTML)
-
     await message_handle(update, context, message=transcribed_text)
 
 
 async def new_dialog_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    await register_user_if_not_exists(update.message.from_user)
+    await is_previous_message_not_answered_yet(update.message.from_user.id)
     user_id = update.message.from_user.id
-    
-    bot_memory.get_dialog_into_str(user_id)
-    long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
-    
+
+    await long_term_memory.add_text(
+        user_namespace=user_id, text=bot_memory.get_conversation_history(user_id)
+    )
+
     bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")
 
@@ -467,19 +428,6 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     await update.message.reply_text(
         f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML
     )
-
-
-async def cancel_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-
-    user_id = update.message.from_user.id
-    if user_id in user_tasks:
-        task = user_tasks[user_id]
-        task.cancel()
-    else:
-        await update.message.reply_text(
-            "<i>Nothing to cancel...</i>", parse_mode=ParseMode.HTML
-        )
 
 
 def get_chat_mode_menu(page_index: int):
@@ -538,9 +486,8 @@ def get_chat_mode_menu(page_index: int):
 
 
 async def show_chat_modes_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update, context, update.message.from_user)
-    if await is_previous_message_not_answered_yet(update, context):
-        return
+    await register_user_if_not_exists(update.message.from_user)
+    await is_previous_message_not_answered_yet(update.message.from_user.id)
 
     text, reply_markup = get_chat_mode_menu(0)
     await update.message.reply_text(
@@ -549,11 +496,8 @@ async def show_chat_modes_handle(update: Update, context: CallbackContext):
 
 
 async def show_chat_modes_callback_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(
-        update.callback_query, context, update.callback_query.from_user
-    )
-    if await is_previous_message_not_answered_yet(update.callback_query, context):
-        return
+    await register_user_if_not_exists(update.callback_query.from_user)
+    await is_previous_message_not_answered_yet(update.message.from_user.id)
 
     query = update.callback_query
     await query.answer()
@@ -573,9 +517,7 @@ async def show_chat_modes_callback_handle(update: Update, context: CallbackConte
 
 
 async def set_chat_mode_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(
-        update.callback_query, context, update.callback_query.from_user
-    )
+    await register_user_if_not_exists(update.callback_query.from_user)
     user_id = update.callback_query.from_user.id
 
     query = update.callback_query
@@ -585,7 +527,6 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
     bot_memory.reset_dialog(user_id)
     bot_memory.set_chat_mode(user_id, chat_mode)
-    
 
     await context.bot.send_message(
         update.callback_query.message.chat.id,
@@ -596,19 +537,13 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
 
 async def show_balance_handle(update: Update, context: CallbackContext):
     """return n_remaining_output_tokens tokens for the user"""
-    await register_user_if_not_exists(update, context, update.message.from_user)
+    await register_user_if_not_exists(update.message.from_user)
 
-    remaining_token = db.get_remaining_tokens(update.message.from_user.id)
+    remaining_token = await db.get_remaining_tokens(update.message.from_user.id)
     await update.message.reply_text(
         text=f"<b>{remaining_token}</b> tokens are still available in your account! Need more? Just type <code>/deposit</code> to top up.",
         parse_mode=ParseMode.HTML,
     )
-
-
-async def edited_message_handle(update: Update, context: CallbackContext):
-    if update.edited_message.chat.type == "private":
-        text = "🥲 Unfortunately, message <b>editing</b> is not supported"
-        await update.edited_message.reply_text(text, parse_mode=ParseMode.HTML)
 
 
 async def error_handle(update: Update, context: CallbackContext) -> None:
@@ -639,8 +574,8 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
                 # answer has invalid characters, so we send it without parse_mode
                 await context.bot.send_message(update.effective_chat.id, message_chunk)
     except Exception as error:
-            error_text = f"Something went wrong during completion. Reason: {error}, update: {update}, context: {context}"
-            logger.error(error_text)
+        error_text = f"Something went wrong during completion. Reason: {error}, update: {update}, context: {context}"
+        logger.error(error_text)
 
 
 async def post_init(application: Application):
@@ -648,7 +583,6 @@ async def post_init(application: Application):
         [
             BotCommand("/new", "Start new dialog"),
             BotCommand("/mode", "Select chat mode"),
-            BotCommand("/retry", "Re-generate response for previous query"),
             BotCommand("/balance", "Show balance"),
             BotCommand("/help", "Show help message"),
             BotCommand("/deposit", "deposit to your account"),
@@ -692,12 +626,8 @@ def run_bot() -> None:
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND & user_filter, message_handle)
     )
-    application.add_handler(CommandHandler("retry", retry_handle, filters=user_filter))
     application.add_handler(
         CommandHandler("new", new_dialog_handle, filters=user_filter)
-    )
-    application.add_handler(
-        CommandHandler("cancel", cancel_handle, filters=user_filter)
     )
 
     application.add_handler(
