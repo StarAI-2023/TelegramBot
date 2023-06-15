@@ -410,8 +410,7 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     await is_previous_message_not_answered_yet(update.message.from_user.id)
     user_id = update.message.from_user.id
 
-    bot_memory.get_dialog_into_str(user_id=user_id)
-    long_term_memory.add_text(user_id, [bot_memory.get_dialog_into_str(user_id)])
+    long_term_memory.add_text(user_id, [bot_memory.get_dialog(user_id)])
 
     bot_memory.reset_dialog(user_id)
     await update.message.reply_text("Starting new dialog ✅")

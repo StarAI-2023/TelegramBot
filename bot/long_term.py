@@ -21,7 +21,7 @@ class LongTermMemory:
         self.Pinecone = Pinecone(
                 self.index,
                 self.embeddings.embed_query,
-                "user_dialog",
+                None,
             )
 
     def similarity_search(self, user_namespace: int, query: str, topK: int):
