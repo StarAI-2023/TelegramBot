@@ -248,6 +248,7 @@ async def message_handle(
             if (
                 datetime.now() - dialog_start_time
             ).seconds > config.new_dialog_timeout and len(dialog_messages) > 0:
+                long_term_memory.add_text(user_id, [bot_memory.get_dialog(user_id)])
                 bot_memory.reset_dialog(user_id=user_id)
 
         n_input_tokens, n_output_tokens = 0, 0
@@ -519,7 +520,7 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
     await query.answer()
 
     chat_mode = query.data.split("|")[1]
-
+    long_term_memory.add_text(user_id, [bot_memory.get_dialog(user_id)])
     bot_memory.reset_dialog(user_id)
     bot_memory.set_chat_mode(user_id, chat_mode)
 
