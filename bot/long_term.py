@@ -84,7 +84,7 @@ class LongTermMemory:
         except Exception as error:
             logger.error("similarity_search error occurred: %s", error)
 
-    async def add_text(self, user_namespace: int, text: str) -> bool:
+    async def add_text(self, user_namespace: int, text: str, chunkSize: int) -> bool:
         """
         How the request should look like:
         {
@@ -102,7 +102,7 @@ class LongTermMemory:
         payload = {
             "indexName": str(self.index_name),
             "nameSpace": str(user_namespace),
-            "chunkSize": 2000,
+            "chunkSize": int(chunkSize),
             "password": str(self.node_server_password),
             "document": {
                 "memoryText": text
