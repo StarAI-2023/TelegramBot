@@ -52,7 +52,6 @@ bot_memory: memory.Memory = memory.Memory()
 long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
-⚪ /new – Start new dialog
 ⚪ /mode – Select chat mode
 ⚪ /balance – Show balance
 ⚪ /help – Show help
@@ -243,8 +242,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
         dialog_chat_mode: str = dialog_chat_mode
         # new dialog timeout
         # TODO delete dialog,  when reset write to pinecone
-        if len(dialog_messages) > 9000:
-            bot_memory.reset_dialog(user_id=user_id)
+        if len(dialog_messages) > 8192:
+            long_term_memory.add_text(user_id,bot_memory.reset_dialog(user_id=user_id),2048)
 
         n_input_tokens, n_output_tokens = 0, 0
         if await db.get_remaining_tokens(user_id=user_id) <= 0:
@@ -269,18 +268,14 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
 
-            previous_conv = "preivous conversation with user:" + str(
-                await long_term_memory.similarity_search(
+            previous_conv = "preivous conversation with user:" + await long_term_memory.similarity_search(
                     user_namespace=user_id, query=incoming_message, topK=2
                 )
-            )
 
-            celerity_background = "your background: " + str(
-                await long_term_memory.similarity_search(
+            celerity_background = "your background: " + await long_term_memory.similarity_search(
                     user_namespace=config.celebrity_namespace,
                     query=incoming_message,
                     topK=1,
-                )
             )
 
             for i in range(1, 4):
@@ -412,24 +407,6 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     await message_handle(update, context, message=transcribed_text)
 
 
-async def new_dialog_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update.message.from_user)
-    await is_previous_message_not_answered_yet(update.message.from_user.id)
-    user_id = update.message.from_user.id
-
-    await long_term_memory.add_text(
-        user_namespace=user_id, text=bot_memory.get_conversation_history(user_id)
-    )
-
-    bot_memory.reset_dialog(user_id)
-    await update.message.reply_text("Starting new dialog ✅")
-
-    chat_mode = bot_memory.get_chat_mode(user_id)
-    await update.message.reply_text(
-        f"{config.chat_modes[chat_mode]['welcome_message']}", parse_mode=ParseMode.HTML
-    )
-
-
 def get_chat_mode_menu(page_index: int):
     n_chat_modes_per_page = config.n_chat_modes_per_page
     text = f"Select <b>chat mode</b> ({len(config.chat_modes)} modes available):"
@@ -524,8 +501,6 @@ async def set_chat_mode_handle(update: Update, context: CallbackContext):
     await query.answer()
 
     chat_mode = query.data.split("|")[1]
-
-    bot_memory.reset_dialog(user_id)
     bot_memory.set_chat_mode(user_id, chat_mode)
 
     await context.bot.send_message(
@@ -581,7 +556,6 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
 async def post_init(application: Application):
     await application.bot.set_my_commands(
         [
-            BotCommand("/new", "Start new dialog"),
             BotCommand("/mode", "Select chat mode"),
             BotCommand("/balance", "Show balance"),
             BotCommand("/help", "Show help message"),
@@ -625,9 +599,6 @@ def run_bot() -> None:
 
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND & user_filter, message_handle)
-    )
-    application.add_handler(
-        CommandHandler("new", new_dialog_handle, filters=user_filter)
     )
 
     application.add_handler(
