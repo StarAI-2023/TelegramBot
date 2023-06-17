@@ -267,14 +267,15 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
-
+            similarity_search_query = dialog_messages[-150:] + incoming_message
+            
             previous_conv = "preivous conversation with user:" + await long_term_memory.similarity_search(
-                    user_namespace=user_id, query=incoming_message, topK=2
+                    user_namespace=user_id, query=similarity_search_query, topK=2
                 )
 
             celerity_background = "your background: " + await long_term_memory.similarity_search(
                     user_namespace=config.celebrity_namespace,
-                    query=incoming_message,
+                    query=similarity_search_query,
                     topK=1,
             )
 
