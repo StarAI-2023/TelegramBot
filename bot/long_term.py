@@ -53,12 +53,12 @@ class LongTermMemory:
             It's one of the things I love about us.",
         'metadata': {'loc.lines.from': 1, 'loc.lines.to': 4}}]
         """
-        payload: dict[str, str] = {
+        payload = {
             "indexName": str(self.index_name),
             "query": str(query),
             "nameSpace": str(user_namespace),
             "password": str(self.node_server_password),
-            "topK": str(topK),
+            "topK": int(topK),
         }
         headers: dict[str, str] = {"Content-Type": "application/json"}
         searchApiEndPoint = f"{self.node_server_url}/search"

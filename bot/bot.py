@@ -278,6 +278,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                 )
             )
 
+            print(previous_conv)
+
             celerity_background = "your background: " + str(
                 await long_term_memory.similarity_search(
                     user_namespace=config.celebrity_namespace,
@@ -421,7 +423,9 @@ async def new_dialog_handle(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
 
     await long_term_memory.add_text(
-        user_namespace=user_id, text=bot_memory.get_conversation_history(user_id)
+        user_namespace=user_id,
+        text=bot_memory.get_conversation_history(user_id),
+        chunkSize=2000,
     )
 
     bot_memory.reset_dialog(user_id)
