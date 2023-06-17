@@ -49,9 +49,9 @@ class Memory:
         if user_id in self.memory:
             message =  self.memory[user_id]["messages"]
             half = len(message)//2
-            self.memory[user_id]["messages"] = message[:half]
+            self.memory[user_id]["messages"] = message[half:]
             self.memory[user_id]["start_time"] = datetime.now()
-            return message[half:]
+            return message[:half]
         else:
             self.create_dialog(user_id=user_id)
 
