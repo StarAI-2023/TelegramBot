@@ -269,8 +269,8 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
 
-            # build similarity search query based on the incoming message and previous dialog messages(500 characters worth)
-            similarity_search_query = dialog_messages[-500:] + incoming_message
+            # build similarity search query based on the incoming message and previous dialog messages(150 characters worth)
+            similarity_search_query = dialog_messages[-150:] + incoming_message
 
             previous_conv = "preivous conversation with user:" + str(
                 await long_term_memory.similarity_search(
