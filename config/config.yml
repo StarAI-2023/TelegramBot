@@ -1,4 +1,4 @@
-telegram_token: "6232825098:AAEHSB5cwayPbxK9XqYi-YdQSktydahWBY8"
+telegram_token: "6196461025:AAFwd3bPlSH0-ncV_WrYEhqEVsnuT573LWE"
 openai_api_key: "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"
 stripe_token: "350862534:LIVE:YWQ3NGVkZjFmMWM4"
 # stripe_token_test: "284685063:TEST:NmYyNjY3N2QwOWNl" # for Test
@@ -32,7 +32,7 @@ pinecone_chunk_size: 2000
 
 #nodejs server
 node_server_password: "fhawjthaj-hthjerahr234oru0ufhgarp324ytp98ayfpsdayfuh4wiu"
-node_server_url: "http://localhost:3000" # for local testing
+node_server_url: "https://nodepinecone-a099e2928d82.herokuapp.com" # for local testing
 
 #celebrity namespace
 celebrity_namespace: "xxx"

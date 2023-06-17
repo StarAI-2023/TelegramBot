@@ -69,7 +69,7 @@ class LongTermMemory:
             ) as response:
                 if response.status == 200:
                     response = await response.json()
-                    return [document["pageContent"] for document in response]
+                    return "".join([document["pageContent"] for document in response])
                 else:
                     logger.error(
                         msg=f"Similarity search failed with error, this is the response: {response}"
