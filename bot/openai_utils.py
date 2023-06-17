@@ -1,7 +1,8 @@
 # from bot import config
-import config
-import tiktoken
 import openai
+import tiktoken
+
+import config
 
 openai.api_key = config.openai_api_key
 
@@ -171,12 +172,6 @@ class ChatGPT:
     def _generate_prompt(self, message, dialog_messages, chat_mode):
         prompt = config.chat_modes[chat_mode]["prompt_start"]
         prompt += "\n\n"
-        # add chat context
-        # if len(dialog_messages) > 0:
-        #     prompt += "Chat:\n"
-        #     for user_message, ai_response in dialog_messages:
-        #         prompt += f"{user_message}\n"
-        #         prompt += f"{ai_response}\n"
 
         # current message
         prompt += f"{dialog_messages}\nUser: {message}\n"

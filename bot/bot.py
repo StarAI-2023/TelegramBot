@@ -269,16 +269,19 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
 
+            # build similarity search query based on the incoming message and previous dialog messages(500 characters worth)
+            similarity_search_query = dialog_messages[-500:] + incoming_message
+
             previous_conv = "preivous conversation with user:" + str(
                 await long_term_memory.similarity_search(
-                    user_namespace=user_id, query=incoming_message, topK=2
+                    user_namespace=user_id, query=similarity_search_query, topK=2
                 )
             )
 
             celerity_background = "your background: " + str(
                 await long_term_memory.similarity_search(
                     user_namespace=config.celebrity_namespace,
-                    query=incoming_message,
+                    query=similarity_search_query,
                     topK=1,
                 )
             )
@@ -290,7 +293,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                         (n_input_tokens, n_output_tokens),
                         not_used,
                     ) = await chatgpt_instance.send_message(
-                        incoming_message,
+                        message=incoming_message,
                         dialog_messages=celerity_background
                         + previous_conv
                         + dialog_messages,
