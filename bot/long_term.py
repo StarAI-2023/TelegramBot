@@ -58,7 +58,7 @@ class LongTermMemory:
             "query": str(query),
             "nameSpace": str(user_namespace),
             "password": str(self.node_server_password),
-            "topK": str(topK),
+            "topK": int(topK),
         }
         headers: dict[str, str] = {"Content-Type": "application/json"}
         searchApiEndPoint = f"{self.node_server_url}/search"
