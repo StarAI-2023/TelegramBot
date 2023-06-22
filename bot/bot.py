@@ -129,7 +129,7 @@ async def deposit_handle(update: Update, context: CallbackContext):
     reply_text = "Please choose the amount you want to deposit. For reference, 600 tokens cost $1.\n\n"
 
     invoice_choice = []
-    invoice_choice.append(createButton(["5", "10", "30"]))
+    invoice_choice.append(createButton(["1", "10", "30"]))
     invoice_choice.append(createButton(["60", "100", "250"]))
     invoice_choice.append(createButton(["500"]))
 
