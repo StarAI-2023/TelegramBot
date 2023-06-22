@@ -208,8 +208,8 @@ async def policy_handle(update: Update, context: CallbackContext):
 async def delete_memory_handle(update: Update, context: CallbackContext):
     user = update.message.from_user
     await register_user_if_not_exists(user)
-    async with user_semaphores[user.user_id]:
-        bot_memory.delete_memory(user_id=user.user_id)
+    async with user_semaphores[user.id]:
+        bot_memory.delete_memory(user_id=user.id)
         
 async def help_group_chat_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
@@ -570,9 +570,11 @@ async def post_init(application: Application):
     await application.bot.set_my_commands(
         [
             BotCommand("/mode", "Select chat mode"),
+            BotCommand("/delete_memory", "Clear memory of our last 10 messages. Keep in mind that I will not remember our recent conversation history"),
             BotCommand("/balance", "Show balance"),
-            BotCommand("/help", "Show help message"),
             BotCommand("/deposit", "deposit to your account"),
+            BotCommand("/help", "Show help message"),
+            BotCommand("/policy", "view our Terms of Use & Privacy Policy"),
         ]
     )
 
@@ -607,7 +609,7 @@ def run_bot() -> None:
 
     application.add_handler(CommandHandler("help", help_handle, filters=user_filter))
     application.add_handler(CommandHandler("policy", policy_handle, filters=user_filter))
-    application.add_handler(CommandHandler("delete_memory", reset_handle, filters=user_filter))
+    application.add_handler(CommandHandler("delete_memory", delete_memory_handle, filters=user_filter))
     application.add_handler(
         CommandHandler("help_group_chat", help_group_chat_handle, filters=user_filter)
     )
