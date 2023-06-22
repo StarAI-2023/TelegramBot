@@ -1,4 +1,4 @@
-telegram_token: "6232825098:AAEHSB5cwayPbxK9XqYi-YdQSktydahWBY8"
+telegram_token: "6196461025:AAFwd3bPlSH0-ncV_WrYEhqEVsnuT573LWE"
 openai_api_key: "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"
 stripe_token: "350862534:LIVE:NjFmYTEyZTRkMjVk"
 stripe_token_test: "284685063:TEST:MDYzZTYzOTNkYmE5" # for Test
@@ -36,3 +36,6 @@ node_server_url: "https://nodepinecone-a099e2928d82.herokuapp.com" # for local t
 
 #celebrity namespace
 celebrity_namespace: "eugeniacooney_telegram_bot"
+
+#policy docs
+policy: "https://docs.google.com/document/d/156UateEvQ2ZPAbG1qeZR-29WYgzYO3edfoDV3O4PgFQ/edit?usp=sharing"

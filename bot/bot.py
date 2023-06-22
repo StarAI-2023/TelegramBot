@@ -53,7 +53,7 @@ long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
 ⚪ /mode – Select chat mode
-⚪ /delete_memory – Clear memory of our last 10 messages. Keep in mind that I will not remember our recent conversation history
+⚪ /delete_memory – Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted
 ⚪ /deposit – Add credits to you account
 ⚪ /balance – Show balance
 ⚪ /help – Show help
@@ -61,7 +61,7 @@ HELP_MESSAGE = """Commands:
 
 🎤 You can send <b>Voice Messages</b> instead of text
 
-Please select chat mode, default sweet mode.
+Please select chat mode, default to sweet mode.
 """
 
 HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
@@ -131,7 +131,7 @@ async def deposit_handle(update: Update, context: CallbackContext):
     reply_text = "Please choose the amount you want to deposit. For reference, 600 tokens cost $1.\n\n"
 
     invoice_choice = []
-    invoice_choice.append(createButton(["1", "10", "30"]))
+    invoice_choice.append(createButton(["5", "10", "30"]))
     invoice_choice.append(createButton(["60", "100", "250"]))
     invoice_choice.append(createButton(["500"]))
 
@@ -203,7 +203,7 @@ async def help_handle(update: Update, context: CallbackContext):
 
 async def policy_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
-    await update.message.reply_text("https://docs.google.com/document/d/156UateEvQ2ZPAbG1qeZR-29WYgzYO3edfoDV3O4PgFQ/edit?usp=sharing", parse_mode=ParseMode.HTML)
+    await update.message.reply_text(config.policy, parse_mode=ParseMode.HTML)
 
 async def delete_memory_handle(update: Update, context: CallbackContext):
     user = update.message.from_user
@@ -576,7 +576,7 @@ async def post_init(application: Application):
     await application.bot.set_my_commands(
         [
             BotCommand("/mode", "Select chat mode"),
-            BotCommand("/delete_memory", "Clear memory of our last 10 messages. Keep in mind that I will not remember our recent conversation history"),
+            BotCommand("/delete_memory", "Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted"),
             BotCommand("/balance", "Show balance"),
             BotCommand("/deposit", "deposit to your account"),
             BotCommand("/help", "Show help message"),
