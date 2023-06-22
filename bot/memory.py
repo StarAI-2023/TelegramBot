@@ -39,7 +39,7 @@ class Memory:
 
     def add_message(self, user_id: int, human_message: str, bot_response: str):
         dialog: dict = self.get_dialog(user_id)
-        human_message = f"User said: {human_message}\n"
+        human_message = f"I said: {human_message}\n"
         bot_response = f"You said: {bot_response}\n"
 
         dialog["messages"] = "".join([dialog["messages"], human_message, bot_response])

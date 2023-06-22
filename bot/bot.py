@@ -53,9 +53,10 @@ long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
 ⚪ /mode – Select chat mode
+⚪ /reset – reset chat bot 
+⚪ /deposit – Add credits to you account
 ⚪ /balance – Show balance
 ⚪ /help – Show help
-⚪ /deposit – Add credits to you account
 ⚪ /policy – view our Terms of Use & Privacy Policy
 
 🎤 You can send <b>Voice Messages</b> instead of text
@@ -273,16 +274,19 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
             openAIActualCallStartTime = time.perf_counter()
             similarity_search_query = dialog_messages[-150:] + incoming_message
             
-            previous_conv = "preivous conversation with user:" + await long_term_memory.similarity_search(
+            previous_conv = "OUR HISTORY CONVERSATION:\n\n" + await long_term_memory.similarity_search(
                     user_namespace=user_id, query=similarity_search_query, topK=2
                 )
 
-            celerity_background = "your background: " + await long_term_memory.similarity_search(
+            celerity_background = "YOUR BACKGOUND:\n\n" + await long_term_memory.similarity_search(
                     user_namespace=config.celebrity_namespace,
                     query=similarity_search_query,
                     topK=1,
             )
-
+            toChatGPT = "".join([celerity_background
+                        ,previous_conv
+                        , "OUR RECENT CONVERSATION THAT MATTERS THE MOST: \n\n"
+                        , dialog_messages])
             for i in range(1, 4):
                 try:
                     (
@@ -291,9 +295,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                         not_used,
                     ) = await chatgpt_instance.send_message(
                         incoming_message,
-                        dialog_messages=celerity_background
-                        + previous_conv
-                        + dialog_messages,
+                        dialog_messages=toChatGPT,
                         chat_mode=chat_mode,
                     )
                     break
