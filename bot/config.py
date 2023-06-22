@@ -16,6 +16,7 @@ config_env = dotenv.dotenv_values(config_dir / "config.env")
 telegram_token = config_yaml["telegram_token"]
 openai_api_key = config_yaml["openai_api_key"]
 stripe_token = config_yaml["stripe_token"]
+stripe_token_test = config_yaml["stripe_token_test"]
 use_chatgpt_api = config_yaml.get("use_chatgpt_api", True)
 allowed_telegram_usernames = config_yaml["allowed_telegram_usernames"]
 new_dialog_timeout = config_yaml["new_dialog_timeout"]
@@ -33,6 +34,7 @@ pinecone_index_name = config_yaml["pinecone_index_name"]
 pinecone_chunk_size = config_yaml["pinecone_chunk_size"]
 node_server_password = config_yaml["node_server_password"]
 node_server_url = config_yaml["node_server_url"]
+policy = config_yaml["policy"]
 # chat_modes
 with open(config_dir / "chat_modes.yml", "r") as f:
     chat_modes = yaml.safe_load(f)

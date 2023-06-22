@@ -39,13 +39,13 @@ class Memory:
 
     def add_message(self, user_id: int, human_message: str, bot_response: str):
         dialog: dict = self.get_dialog(user_id)
-        human_message = f"User said: {human_message}\n"
+        human_message = f"I said: {human_message}\n"
         bot_response = f"You said: {bot_response}\n"
 
         dialog["messages"] = "".join([dialog["messages"], human_message, bot_response])
 
     # reset when mode change
-    def reset_dialog(self, user_id: int) -> None:
+    def write_to_long_term(self, user_id: int) -> None:
         if user_id in self.memory:
             message =  self.memory[user_id]["messages"]
             half = len(message)//2
@@ -55,6 +55,15 @@ class Memory:
         else:
             self.create_dialog(user_id=user_id)
 
+    def delete_memory(self,user_id: int) -> None:
+        if user_id in self.memory:
+            message = self.memory[user_id]["messages"]
+            new = message.rsplit('\n', 10)
+            if len(new)==11:
+                self.memory[user_id]["messages"] = new[0]
+            else:
+                self.memory[user_id]["messages"] = ""
+            
     def set_chat_mode(self, user_id: int, chat_mode: str):
         if user_id in self.memory:
             self.memory[user_id]["chat_mode"] = chat_mode

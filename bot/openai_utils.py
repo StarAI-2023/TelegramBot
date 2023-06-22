@@ -179,8 +179,8 @@ class ChatGPT:
         #         prompt += f"{ai_response}\n"
 
         # current message
-        prompt += f"{dialog_messages}\nUser: {message}\n"
-        prompt += "you said: "
+        prompt += f"{dialog_messages}\nI said: {message}\n"
+        prompt += "you say: "
 
         return prompt
 

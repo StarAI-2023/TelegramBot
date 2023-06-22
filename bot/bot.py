@@ -53,13 +53,15 @@ long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
 ⚪ /mode – Select chat mode
+⚪ /delete_memory – Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted
+⚪ /deposit – Add credits to you account
 ⚪ /balance – Show balance
 ⚪ /help – Show help
-⚪ /deposit – Add credits to you account
+⚪ /policy – view our Terms of Use & Privacy Policy
 
 🎤 You can send <b>Voice Messages</b> instead of text
 
-Please select chat mode, default toxic mode.
+Please select chat mode, default to sweet mode.
 """
 
 HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
@@ -199,7 +201,16 @@ async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
 
+async def policy_handle(update: Update, context: CallbackContext):
+    await register_user_if_not_exists(update.message.from_user)
+    await update.message.reply_text(config.policy, parse_mode=ParseMode.HTML)
 
+async def delete_memory_handle(update: Update, context: CallbackContext):
+    user = update.message.from_user
+    await register_user_if_not_exists(user)
+    async with user_semaphores[user.id]:
+        bot_memory.delete_memory(user_id=user.id)
+        
 async def help_group_chat_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
 
@@ -243,11 +254,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
         # new dialog timeout
         # TODO delete dialog,  when reset write to pinecone
         if len(dialog_messages) > 8192:
-            long_term_memory.add_text(
-                user_namespace=user_id,
-                text=bot_memory.reset_dialog(user_id=user_id),
-                chunkSize=2048,
-            )
+            long_term_memory.add_text(user_id,bot_memory.reset_dialog(user_id=user_id),2048)
 
         n_input_tokens, n_output_tokens = 0, 0
         if await db.get_remaining_tokens(user_id=user_id) <= 0:
@@ -275,21 +282,23 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
             similarity_search_query = dialog_messages[-150:] + incoming_message
 
             previous_conv = (
-                "preivous conversation with user:"
+                "OUR HISTORY CONVERSATION:\n\n"
                 + await long_term_memory.similarity_search(
                     user_namespace=user_id, query=similarity_search_query, topK=2
                 )
             )
 
             celerity_background = (
-                "your background: "
+                "YOUR BACKGOUND:\n\n"
                 + await long_term_memory.similarity_search(
                     user_namespace=config.celebrity_namespace,
                     query=similarity_search_query,
                     topK=1,
-                )
-            )
-
+            ))
+            toChatGPT = "".join([celerity_background
+                        ,previous_conv
+                        , "OUR RECENT CONVERSATION THAT MATTERS THE MOST: \n\n"
+                        , dialog_messages])
             for i in range(1, 4):
                 try:
                     (
@@ -298,9 +307,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                         not_used,
                     ) = await chatgpt_instance.send_message(
                         incoming_message,
-                        dialog_messages=celerity_background
-                        + previous_conv
-                        + dialog_messages,
+                        dialog_messages=toChatGPT,
                         chat_mode=chat_mode,
                     )
                     break
@@ -569,9 +576,11 @@ async def post_init(application: Application):
     await application.bot.set_my_commands(
         [
             BotCommand("/mode", "Select chat mode"),
+            BotCommand("/delete_memory", "Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted"),
             BotCommand("/balance", "Show balance"),
-            BotCommand("/help", "Show help message"),
             BotCommand("/deposit", "deposit to your account"),
+            BotCommand("/help", "Show help message"),
+            BotCommand("/policy", "view our Terms of Use & Privacy Policy"),
         ]
     )
 
@@ -605,6 +614,8 @@ def run_bot() -> None:
     )
 
     application.add_handler(CommandHandler("help", help_handle, filters=user_filter))
+    application.add_handler(CommandHandler("policy", policy_handle, filters=user_filter))
+    application.add_handler(CommandHandler("delete_memory", delete_memory_handle, filters=user_filter))
     application.add_handler(
         CommandHandler("help_group_chat", help_group_chat_handle, filters=user_filter)
     )
