@@ -56,6 +56,7 @@ HELP_MESSAGE = """Commands:
 ⚪ /balance – Show balance
 ⚪ /help – Show help
 ⚪ /deposit – Add credits to you account
+⚪ /policy – view our Terms of Use & Privacy Policy
 
 🎤 You can send <b>Voice Messages</b> instead of text
 
@@ -199,6 +200,9 @@ async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
 
+async def policy_handle(update: Update, context: CallbackContext):
+    await register_user_if_not_exists(update.message.from_user)
+    await update.message.reply_text("https://docs.google.com/document/d/156UateEvQ2ZPAbG1qeZR-29WYgzYO3edfoDV3O4PgFQ/edit?usp=sharing", parse_mode=ParseMode.HTML)
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
@@ -594,6 +598,7 @@ def run_bot() -> None:
     )
 
     application.add_handler(CommandHandler("help", help_handle, filters=user_filter))
+    application.add_handler(CommandHandler("policy", policy_handle, filters=user_filter))
     application.add_handler(
         CommandHandler("help_group_chat", help_group_chat_handle, filters=user_filter)
     )
