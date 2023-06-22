@@ -53,7 +53,7 @@ long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
 ⚪ /mode – Select chat mode
-⚪ /reset – reset chat bot 
+⚪ /delete_memory – Clear memory of our last 10 messages. Keep in mind that I will not remember our recent conversation history
 ⚪ /deposit – Add credits to you account
 ⚪ /balance – Show balance
 ⚪ /help – Show help
@@ -205,6 +205,12 @@ async def policy_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
     await update.message.reply_text("https://docs.google.com/document/d/156UateEvQ2ZPAbG1qeZR-29WYgzYO3edfoDV3O4PgFQ/edit?usp=sharing", parse_mode=ParseMode.HTML)
 
+async def delete_memory_handle(update: Update, context: CallbackContext):
+    user = update.message.from_user
+    await register_user_if_not_exists(user)
+    async with user_semaphores[user.user_id]:
+        bot_memory.delete_memory(user_id=user.user_id)
+        
 async def help_group_chat_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
 
@@ -248,7 +254,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
         # new dialog timeout
         # TODO delete dialog,  when reset write to pinecone
         if len(dialog_messages) > 8192:
-            long_term_memory.add_text(user_id,bot_memory.reset_dialog(user_id=user_id),2048)
+            long_term_memory.add_text(user_id,bot_memory.write_to_long_term(user_id=user_id),2048)
 
         n_input_tokens, n_output_tokens = 0, 0
         if await db.get_remaining_tokens(user_id=user_id) <= 0:
@@ -601,6 +607,7 @@ def run_bot() -> None:
 
     application.add_handler(CommandHandler("help", help_handle, filters=user_filter))
     application.add_handler(CommandHandler("policy", policy_handle, filters=user_filter))
+    application.add_handler(CommandHandler("delete_memory", reset_handle, filters=user_filter))
     application.add_handler(
         CommandHandler("help_group_chat", help_group_chat_handle, filters=user_filter)
     )
