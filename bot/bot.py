@@ -59,7 +59,7 @@ HELP_MESSAGE = """Commands:
 
 🎤 You can send <b>Voice Messages</b> instead of text
 
-Please select chat mode, default toxic mode.
+Please select chat mode, default sweet mode.
 """
 
 HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
