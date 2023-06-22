@@ -254,7 +254,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
         # new dialog timeout
         # TODO delete dialog,  when reset write to pinecone
         if len(dialog_messages) > 8192:
-            long_term_memory.add_text(user_id,bot_memory.write_to_long_term(user_id=user_id),2048)
+            long_term_memory.add_text(user_id,bot_memory.reset_dialog(user_id=user_id),2048)
 
         n_input_tokens, n_output_tokens = 0, 0
         if await db.get_remaining_tokens(user_id=user_id) <= 0:
@@ -278,17 +278,23 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
             openAIStartTime = time.perf_counter()
             chatgpt_instance = openai_utils.ChatGPT()
             openAIActualCallStartTime = time.perf_counter()
+            # take last 150 char + incoming messages as query to have more relevant similarity search results
             similarity_search_query = dialog_messages[-150:] + incoming_message
-            
-            previous_conv = "OUR HISTORY CONVERSATION:\n\n" + await long_term_memory.similarity_search(
+
+            previous_conv = (
+                "OUR HISTORY CONVERSATION:\n\n"
+                + await long_term_memory.similarity_search(
                     user_namespace=user_id, query=similarity_search_query, topK=2
                 )
+            )
 
-            celerity_background = "YOUR BACKGOUND:\n\n" + await long_term_memory.similarity_search(
+            celerity_background = (
+                "YOUR BACKGOUND:\n\n"
+                + await long_term_memory.similarity_search(
                     user_namespace=config.celebrity_namespace,
                     query=similarity_search_query,
                     topK=1,
-            )
+            ))
             toChatGPT = "".join([celerity_background
                         ,previous_conv
                         , "OUR RECENT CONVERSATION THAT MATTERS THE MOST: \n\n"
