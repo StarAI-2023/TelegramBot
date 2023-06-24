@@ -19,7 +19,7 @@ class VoiceClone:
         data = {
             "text": text,
             "model_id": "eleven_monolingual_v1",
-            "voice_settings": {"stability": 0.2, "similarity_boost": 0.9},
+            "voice_settings": {"stability": 0.1, "similarity_boost": 0.8},
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(

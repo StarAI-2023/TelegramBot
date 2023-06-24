@@ -52,16 +52,14 @@ bot_memory: memory.Memory = memory.Memory()
 long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
-⚪ /mode – Select chat mode
-⚪ /delete_memory – Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted
 ⚪ /deposit – Add credits to you account
+⚪ /delete_memory – Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted
 ⚪ /balance – Show balance
 ⚪ /help – Show help
 ⚪ /policy – view our Terms of Use & Privacy Policy
 
 🎤 You can send <b>Voice Messages</b> instead of text
 
-Please select chat mode, default to sweet mode.
 """
 
 HELP_GROUP_CHAT_MESSAGE = """You can add bot to any <b>group chat</b> to help and entertain its participants!
@@ -190,11 +188,14 @@ async def start_handle(update: Update, context: CallbackContext) -> None:
     user: User = update.message.from_user
 
     reply_text = f"Hey <b>{user.first_name}</b> here, how are you doing?\n\n"
-    reply_text += HELP_MESSAGE
+    reply_text += "use /help to check all the commands\nuse /deposit to add credits to you account"
     await context.bot.send_message(
         chat_id=update.effective_chat.id, text=reply_text, parse_mode=ParseMode.HTML
     )
-    await show_chat_modes_handle(update, context)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Hey there, this is Eugenia, how are you doing!", parse_mode=ParseMode.HTML
+    )
+    # await show_chat_modes_handle(update, context)
 
 
 async def help_handle(update: Update, context: CallbackContext):
@@ -426,107 +427,107 @@ async def voice_message_handle(update: Update, context: CallbackContext):
     await message_handle(update, context, message=transcribed_text)
 
 
-def get_chat_mode_menu(page_index: int):
-    n_chat_modes_per_page = config.n_chat_modes_per_page
-    text = f"Select <b>chat mode</b> ({len(config.chat_modes)} modes available):"
+# def get_chat_mode_menu(page_index: int):
+#     n_chat_modes_per_page = config.n_chat_modes_per_page
+#     text = f"Select <b>chat mode</b> ({len(config.chat_modes)} modes available):"
 
-    # buttons
-    chat_mode_keys = list(config.chat_modes.keys())
-    page_chat_mode_keys = chat_mode_keys[
-        page_index * n_chat_modes_per_page : (page_index + 1) * n_chat_modes_per_page
-    ]
+#     # buttons
+#     chat_mode_keys = list(config.chat_modes.keys())
+#     page_chat_mode_keys = chat_mode_keys[
+#         page_index * n_chat_modes_per_page : (page_index + 1) * n_chat_modes_per_page
+#     ]
 
-    keyboard = []
-    for chat_mode_key in page_chat_mode_keys:
-        name = config.chat_modes[chat_mode_key]["name"]
-        keyboard.append(
-            [InlineKeyboardButton(name, callback_data=f"set_chat_mode|{chat_mode_key}")]
-        )
+#     keyboard = []
+#     for chat_mode_key in page_chat_mode_keys:
+#         name = config.chat_modes[chat_mode_key]["name"]
+#         keyboard.append(
+#             [InlineKeyboardButton(name, callback_data=f"set_chat_mode|{chat_mode_key}")]
+#         )
 
-    # pagination
-    if len(chat_mode_keys) > n_chat_modes_per_page:
-        is_first_page = page_index == 0
-        is_last_page = (page_index + 1) * n_chat_modes_per_page >= len(chat_mode_keys)
+#     # pagination
+#     if len(chat_mode_keys) > n_chat_modes_per_page:
+#         is_first_page = page_index == 0
+#         is_last_page = (page_index + 1) * n_chat_modes_per_page >= len(chat_mode_keys)
 
-        if is_first_page:
-            keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        "»", callback_data=f"show_chat_modes|{page_index + 1}"
-                    )
-                ]
-            )
-        elif is_last_page:
-            keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        "«", callback_data=f"show_chat_modes|{page_index - 1}"
-                    ),
-                ]
-            )
-        else:
-            keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        "«", callback_data=f"show_chat_modes|{page_index - 1}"
-                    ),
-                    InlineKeyboardButton(
-                        "»", callback_data=f"show_chat_modes|{page_index + 1}"
-                    ),
-                ]
-            )
+#         if is_first_page:
+#             keyboard.append(
+#                 [
+#                     InlineKeyboardButton(
+#                         "»", callback_data=f"show_chat_modes|{page_index + 1}"
+#                     )
+#                 ]
+#             )
+#         elif is_last_page:
+#             keyboard.append(
+#                 [
+#                     InlineKeyboardButton(
+#                         "«", callback_data=f"show_chat_modes|{page_index - 1}"
+#                     ),
+#                 ]
+#             )
+#         else:
+#             keyboard.append(
+#                 [
+#                     InlineKeyboardButton(
+#                         "«", callback_data=f"show_chat_modes|{page_index - 1}"
+#                     ),
+#                     InlineKeyboardButton(
+#                         "»", callback_data=f"show_chat_modes|{page_index + 1}"
+#                     ),
+#                 ]
+#             )
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
+#     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    return text, reply_markup
-
-
-async def show_chat_modes_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update.message.from_user)
-    await is_previous_message_not_answered_yet(update.message.from_user.id)
-
-    text, reply_markup = get_chat_mode_menu(0)
-    await update.message.reply_text(
-        text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
-    )
+#     return text, reply_markup
 
 
-async def show_chat_modes_callback_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update.callback_query.from_user)
-    await is_previous_message_not_answered_yet(update.message.from_user.id)
+# async def show_chat_modes_handle(update: Update, context: CallbackContext):
+#     await register_user_if_not_exists(update.message.from_user)
+#     await is_previous_message_not_answered_yet(update.message.from_user.id)
 
-    query = update.callback_query
-    await query.answer()
-
-    page_index = int(query.data.split("|")[1])
-    if page_index < 0:
-        return
-
-    text, reply_markup = get_chat_mode_menu(page_index)
-    try:
-        await query.edit_message_text(
-            text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
-        )
-    except telegram.error.BadRequest as e:
-        if str(e).startswith("Message is not modified"):
-            pass
+#     text, reply_markup = get_chat_mode_menu(0)
+#     await update.message.reply_text(
+#         text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
+#     )
 
 
-async def set_chat_mode_handle(update: Update, context: CallbackContext):
-    await register_user_if_not_exists(update.callback_query.from_user)
-    user_id = update.callback_query.from_user.id
+# async def show_chat_modes_callback_handle(update: Update, context: CallbackContext):
+#     await register_user_if_not_exists(update.callback_query.from_user)
+#     await is_previous_message_not_answered_yet(update.message.from_user.id)
 
-    query = update.callback_query
-    await query.answer()
+#     query = update.callback_query
+#     await query.answer()
 
-    chat_mode = query.data.split("|")[1]
-    bot_memory.set_chat_mode(user_id, chat_mode)
+#     page_index = int(query.data.split("|")[1])
+#     if page_index < 0:
+#         return
 
-    await context.bot.send_message(
-        update.callback_query.message.chat.id,
-        f"{config.chat_modes[chat_mode]['welcome_message']}",
-        parse_mode=ParseMode.HTML,
-    )
+#     text, reply_markup = get_chat_mode_menu(page_index)
+#     try:
+#         await query.edit_message_text(
+#             text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
+#         )
+#     except telegram.error.BadRequest as e:
+#         if str(e).startswith("Message is not modified"):
+#             pass
+
+
+# async def set_chat_mode_handle(update: Update, context: CallbackContext):
+#     await register_user_if_not_exists(update.callback_query.from_user)
+#     user_id = update.callback_query.from_user.id
+
+#     query = update.callback_query
+#     await query.answer()
+
+#     chat_mode = query.data.split("|")[1]
+#     bot_memory.set_chat_mode(user_id, chat_mode)
+#     logger.error(chat_mode)
+#     await context.bot.send_message(
+#         update.callback_query.message.chat.id,
+#         f"{config.chat_modes[chat_mode]['welcome_message']}",
+#         parse_mode=ParseMode.HTML,
+#     )
 
 
 async def show_balance_handle(update: Update, context: CallbackContext):
@@ -575,7 +576,6 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
 async def post_init(application: Application):
     await application.bot.set_my_commands(
         [
-            BotCommand("/mode", "Select chat mode"),
             BotCommand("/delete_memory", "Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted"),
             BotCommand("/balance", "Show balance"),
             BotCommand("/deposit", "deposit to your account"),
@@ -628,17 +628,17 @@ def run_bot() -> None:
         MessageHandler(filters.VOICE & user_filter, voice_message_handle)
     )
 
-    application.add_handler(
-        CommandHandler("mode", show_chat_modes_handle, filters=user_filter)
-    )
-    application.add_handler(
-        CallbackQueryHandler(
-            show_chat_modes_callback_handle, pattern="^show_chat_modes"
-        )
-    )
-    application.add_handler(
-        CallbackQueryHandler(set_chat_mode_handle, pattern="^set_chat_mode")
-    )
+    # application.add_handler(
+    #     CommandHandler("mode", show_chat_modes_handle, filters=user_filter)
+    # )
+    # application.add_handler(
+    #     CallbackQueryHandler(
+    #         show_chat_modes_callback_handle, pattern="^show_chat_modes"
+    #     )
+    # )
+    # application.add_handler(
+    #     CallbackQueryHandler(set_chat_mode_handle, pattern="^set_chat_mode")
+    # )
 
     application.add_handler(
         CommandHandler("balance", show_balance_handle, filters=user_filter)

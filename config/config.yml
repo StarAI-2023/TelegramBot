@@ -21,7 +21,8 @@ whisper_price_per_1_min: 0.006
 
 # voice clone
 # 11_labs_voice_id: "21m00Tcm4TlvDq8ikWAM" Standard Voice
-11_labs_voice_id: "Xa3HdpkHvIyaVWcu1rmM" # Voice From Shab
+# 11_labs_voice_id: "Xa3HdpkHvIyaVWcu1rmM" # Voice From Shab
+11_labs_voice_id: "6BBs3y47iR73eAS9sR3y" # Voice From Eugenia
 11_labs_api_key: "7208c024013cf72ca4e7e674942844bb"
 
 #pinecone

@@ -12,7 +12,7 @@ class Memory:
        }
     """
 
-    def __init__(self, default_chat_mode: str = "sweet"):
+    def __init__(self, default_chat_mode: str = "Eugenia"):
         self.memory: dict = {}
         self.default_chat_mode: str = default_chat_mode
 
