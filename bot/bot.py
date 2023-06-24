@@ -187,13 +187,12 @@ async def start_handle(update: Update, context: CallbackContext) -> None:
     await register_user_if_not_exists(update.message.from_user)
     user: User = update.message.from_user
 
-    reply_text = f"Hey <b>{user.first_name}</b> here, how are you doing?\n\n"
-    reply_text += "use /help to check all the commands\nuse /deposit to add credits to you account"
+    reply_text = "use /help to check all the commands\nuse /deposit to add credits to you account"
     await context.bot.send_message(
         chat_id=update.effective_chat.id, text=reply_text, parse_mode=ParseMode.HTML
     )
     await context.bot.send_message(
-        chat_id=update.effective_chat.id, text="Hey there, this is Eugenia, how are you doing!", parse_mode=ParseMode.HTML
+        chat_id=update.effective_chat.id, text=f"Hey {user.first_name}, this is Eugenia, how are you doing!", parse_mode=ParseMode.HTML
     )
     # await show_chat_modes_handle(update, context)
 
