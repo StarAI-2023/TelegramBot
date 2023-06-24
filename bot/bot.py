@@ -3,6 +3,7 @@ import html
 import json
 import logging
 import os
+import random
 import tempfile
 import time
 import traceback
@@ -41,14 +42,14 @@ from telegram.ext import (
 
 import config
 
-# setup
+global bot_instance
 
 db: database.Database = database.Database()
 logger = logging.getLogger(__name__)
 voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
-bot_memory: memory.Memory = memory.Memory()
+bot_memory: memory.Memory = memory.Memory(mongoDb=db)
 long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
@@ -201,16 +202,19 @@ async def help_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
     await update.message.reply_text(HELP_MESSAGE, parse_mode=ParseMode.HTML)
 
+
 async def policy_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
     await update.message.reply_text(config.policy, parse_mode=ParseMode.HTML)
+
 
 async def delete_memory_handle(update: Update, context: CallbackContext):
     user = update.message.from_user
     await register_user_if_not_exists(user)
     async with user_semaphores[user.id]:
         bot_memory.delete_memory(user_id=user.id)
-        
+
+
 async def help_group_chat_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
 
@@ -254,7 +258,9 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
         # new dialog timeout
         # TODO delete dialog,  when reset write to pinecone
         if len(dialog_messages) > 8192:
-            long_term_memory.add_text(user_id,bot_memory.reset_dialog(user_id=user_id),2048)
+            long_term_memory.add_text(
+                user_id, bot_memory.write_to_long_term(user_id=user_id), 2048
+            )
 
         n_input_tokens, n_output_tokens = 0, 0
         if await db.get_remaining_tokens(user_id=user_id) <= 0:
@@ -294,11 +300,16 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                     user_namespace=config.celebrity_namespace,
                     query=similarity_search_query,
                     topK=1,
-            ))
-            toChatGPT = "".join([celerity_background
-                        ,previous_conv
-                        , "OUR RECENT CONVERSATION THAT MATTERS THE MOST: \n\n"
-                        , dialog_messages])
+                )
+            )
+            toChatGPT = "".join(
+                [
+                    celerity_background,
+                    previous_conv,
+                    "OUR RECENT CONVERSATION THAT MATTERS THE MOST: \n\n",
+                    dialog_messages,
+                ]
+            )
             for i in range(1, 4):
                 try:
                     (
@@ -576,7 +587,10 @@ async def post_init(application: Application):
     await application.bot.set_my_commands(
         [
             BotCommand("/mode", "Select chat mode"),
-            BotCommand("/delete_memory", "Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted"),
+            BotCommand(
+                "/delete_memory",
+                "Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted",
+            ),
             BotCommand("/balance", "Show balance"),
             BotCommand("/deposit", "deposit to your account"),
             BotCommand("/help", "Show help message"),
@@ -597,7 +611,9 @@ def run_bot() -> None:
         .build()
     )
 
-    # add handlers
+    global bot_instance
+    bot_instance = application.bot
+
     user_filter = filters.ALL
 
     application.add_handler(CommandHandler("start", start_handle, filters=user_filter))
@@ -614,8 +630,12 @@ def run_bot() -> None:
     )
 
     application.add_handler(CommandHandler("help", help_handle, filters=user_filter))
-    application.add_handler(CommandHandler("policy", policy_handle, filters=user_filter))
-    application.add_handler(CommandHandler("delete_memory", delete_memory_handle, filters=user_filter))
+    application.add_handler(
+        CommandHandler("policy", policy_handle, filters=user_filter)
+    )
+    application.add_handler(
+        CommandHandler("delete_memory", delete_memory_handle, filters=user_filter)
+    )
     application.add_handler(
         CommandHandler("help_group_chat", help_group_chat_handle, filters=user_filter)
     )
@@ -649,6 +669,38 @@ def run_bot() -> None:
     # start the bot
     application.run_polling()
 
+
+async def backup_short_term_memory_task():
+    """back up short term memory to db every 6 hours"""
+    db.backup_short_term_memory(bot_memory.memory)
+    # sleep_duration = 6 * 3600 # duration in seconds
+    sleep_duration = 30  # back up every 30 seconds for testing
+    await asyncio.sleep(sleep_duration)
+
+
+async def periodic_reachout_task():
+    while True:
+        # bot_instance.
+
+        # Fetch users from the database
+        users = (
+            db.get_users()
+        )  # Let's assume get_users() is a function which returns all the users
+        for user in users:
+            # Check if you've interacted with the user recently
+            # Replace this with actual condition
+            if not recently_interacted(user):
+                # If not, send a text
+                # Replace with actual bot's function to send a message
+                await bot.send_message(user.id, "Hello, it's been a while!")
+        # Wait for a random time between 2 to 6 days before the next iteration
+        sleep_duration = random.randint(
+            3 * 24 * 60 * 60, 6 * 24 * 60 * 60
+        )  # duration in seconds
+        await asyncio.sleep(sleep_duration)
+
+
+# TODO: add a function to check if the user has interacted recently and if not delete their short term memory for better performance
 
 if __name__ == "__main__":
     run_bot()

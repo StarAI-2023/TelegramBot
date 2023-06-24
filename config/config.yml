@@ -13,6 +13,12 @@ return_n_generated_images: 1
 n_chat_modes_per_page: 5
 enable_message_streaming: false  # if set, messages will be shown to user word-by-word
 
+# MongoDB
+mongodb_uri_remote: "mongodb+srv://me:F595YW6HduqCjNyN@cluster0.9gg56ry.mongodb.net/?retryWrites=true&w=majority"
+# mongodb_uri_cluster_1 = "mongodb+srv://will:Wkf0OkXsWcmt10U1@bot.usvocwk.mongodb.net/?retryWrites=true&w=majority"
+# mongodb_uri_cluster_2 = "mongodb+srv://me:F595YW6HduqCjNyN@cluster0.9gg56ry.mongodb.net/?retryWrites=true&w=majority"
+short_term_memory_backup_key: "EugeniaTelegramBot1ShortTermMemoryLog"
+
 # prices
 chatgpt_price_per_1000_tokens: 0.002
 gpt_price_per_1000_tokens: 0.02
