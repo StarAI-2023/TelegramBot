@@ -254,7 +254,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
         # new dialog timeout
         # TODO delete dialog,  when reset write to pinecone
         if len(dialog_messages) > 8192:
-            long_term_memory.add_text(user_id,bot_memory.reset_dialog(user_id=user_id),2048)
+            long_term_memory.add_text(user_namespace=user_id,text=bot_memory.write_to_long_term(user_id=user_id),chunkSize=2048)
 
         n_input_tokens, n_output_tokens = 0, 0
         if await db.get_remaining_tokens(user_id=user_id) <= 0:
