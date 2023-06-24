@@ -295,7 +295,6 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                     query=similarity_search_query,
                     topK=1,
             ))
-            logger.error(celerity_background)
             toChatGPT = "".join([celerity_background
                         ,previous_conv
                         , "OUR RECENT CONVERSATION THAT MATTERS THE MOST: \n\n"
