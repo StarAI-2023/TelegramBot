@@ -295,6 +295,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                     query=similarity_search_query,
                     topK=1,
             ))
+            logger.error(celerity_background)
             toChatGPT = "".join([celerity_background
                         ,previous_conv
                         , "OUR RECENT CONVERSATION THAT MATTERS THE MOST: \n\n"
@@ -343,7 +344,7 @@ async def message_handle(update: Update, context: CallbackContext, message=None)
                 audio_data: bytes = await voice_clone.generateVoice(text=answer)
                 end_time = time.perf_counter()
                 logger.error(
-                    msg=f"11 labs elapsed time: {end_time-start_time} seconds."
+                    msg=f"voice clone elapsed time: {end_time-start_time} seconds."
                 )
                 audio_file = BytesIO(audio_data)
                 audio_file.name = "output.ogg"
