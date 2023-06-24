@@ -25,6 +25,10 @@ whisper_price_per_1_min: 0.006
 11_labs_voice_id: "6BBs3y47iR73eAS9sR3y" # Voice From Eugenia
 11_labs_api_key: "7208c024013cf72ca4e7e674942844bb"
 
+#playht
+playht_user_id: "lUTFPtLCfiP68Bbw0EV4dVJQD5n2"
+playht_api_key: "a65d351aba794e7fb4d6f17162311025"
+
 #pinecone
 pinecone_api_key: "24d1478d-5281-491c-bf71-d1255f401c71"
 pinecone_environment: us-west1-gcp

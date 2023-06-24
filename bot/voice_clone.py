@@ -8,18 +8,22 @@ class VoiceClone:
     def __init__(self):
         self.api_key = config.voice_clone_api_key
         self.voice_id = config.voice_clone_id
-        self.url = f"https://api.elevenlabs.io/v1/text-to-speech/{self.voice_id}?optimize_streaming_latency=0"
+        self.url = f"https://play.ht/api/v2/tts/stream"
 
     async def generateVoice(self, text) -> bytes:
         headers = {
             "accept": "audio/mpeg",
-            "xi-api-key": self.api_key,
-            "Content-Type": "application/json",
+            "content-type": "application/json",
+            "AUTHORIZATION": f"Bearer {self.api_key}",
+            "X-USER-ID": self.voice_id
         }
         data = {
+            "quality": "premium",
+            "output_format": "mp3",
+            "speed": 1,
+            "sample_rate": 24000,
             "text": text,
-            "model_id": "eleven_monolingual_v1",
-            "voice_settings": {"stability": 0.1, "similarity_boost": 0.8},
+            "voice": "s3://voice-cloning-zero-shot/fd3dfff1-aa41-4bf5-8604-ab9e15bd4810/w3r/manifest.json"
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -31,7 +35,6 @@ class VoiceClone:
                     return audio_data
                 else:
                     raise Exception(f"Request failed with status code {resp.status}")
-
 
 # from typing import Iterator, Union
 # from elevenlabs import clone, generate, play, set_api_key

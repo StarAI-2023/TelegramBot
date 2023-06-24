@@ -24,8 +24,8 @@ n_chat_modes_per_page = config_yaml.get("n_chat_modes_per_page", 5)
 mongodb_uri_remote = "mongodb+srv://will:Wkf0OkXsWcmt10U1@bot.usvocwk.mongodb.net/?retryWrites=true&w=majority"
 mongodb_uri_second = "mongodb+srv://me:F595YW6HduqCjNyN@cluster0.9gg56ry.mongodb.net/?retryWrites=true&w=majority"
 available_token_new_user = config_yaml["available_output_token_new_user"]
-voice_clone_api_key = config_yaml["11_labs_api_key"]
-voice_clone_id = config_yaml["11_labs_voice_id"]
+voice_clone_api_key = config_yaml["a65d351aba794e7fb4d6f17162311025"]
+voice_clone_id = config_yaml["playht_user_id"]
 pinecone_api_key = config_yaml["pinecone_api_key"]
 pinecone_environment = config_yaml["pinecone_environment"]
 pinecone_index_name = config_yaml["pinecone_index_name"]
