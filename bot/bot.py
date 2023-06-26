@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 voice_clone = voice_clone.VoiceClone()
 user_semaphores: dict = {}
 user_tasks: dict = {}
-bot_memory: memory.Memory = memory.Memory(mongoDb=db)
+bot_memory: memory.Memory = memory.Memory()
 long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
