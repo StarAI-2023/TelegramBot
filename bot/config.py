@@ -14,6 +14,7 @@ config_env = dotenv.dotenv_values(config_dir / "config.env")
 
 # config parameters
 telegram_token = config_yaml["telegram_token"]
+bot_id = config_yaml["bot_id"]
 openai_api_key = config_yaml["openai_api_key"]
 stripe_token = config_yaml["stripe_token"]
 stripe_token_test = config_yaml["stripe_token_test"]

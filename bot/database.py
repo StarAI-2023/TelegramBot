@@ -107,26 +107,36 @@ class Database:
 
     async def backup_short_term_memory(self, short_term_memory: dict):
         """Store short term memory data in MongoDB"""
+        short_term_memory["_id"] = config.bot_id
         short_term_memory["inserted_at"] = datetime.now()
+
         try:
-            await self.short_term_memory_backup_collection.insert_one(short_term_memory)
+            await self.short_term_memory_backup_collection.update_one(
+                {"_id": short_term_memory["_id"]},
+                {"$set": short_term_memory},
+                upsert=True,
+            )
+            print(
+                f"Successfully backup short_term_memory into database{str(datetime.now())}"
+            )
         except Exception as e:
             print(f"Store_short_term_memory failed with error: {e}")
 
-    async def load_short_term_memory(self) -> dict:
+    async def load_short_term_memory_from_db(self) -> dict:
         """
         Load the most recent short term memory data from MongoDB
         If no data is found, return an empty dict
         """
-        result = (
-            await self.short_term_memory_backup_collection.find()
-            .sort("inserted_at", -1)
-            .to_list(length=1)
+        result = await self.short_term_memory_backup_collection.find_one(
+            {"_id": config.bot_id}
         )
         if result:
-            return result[0]
+            return result
         else:
             print(
-                "No short term memory data found in MongoDB, return empty dict instead"
+                "No short_term_memory data found in MongoDB for the given bot_id, return empty dict instead"
             )
             return {}
+
+    def close(self):
+        self.client.close()

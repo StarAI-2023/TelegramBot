@@ -10,6 +10,7 @@ import traceback
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from threading import Thread
 from typing import List
 
 import database
@@ -669,6 +670,53 @@ def run_bot() -> None:
     # start the bot
     application.run_polling()
 
+    Thread(target=start_async_tasks).start()
+
+
+async def backup_short_term_memory_task():
+    """back up short term memory to db every 6 hours"""
+    # Create a new mongo client in the new event loop so that it doesn't interfere with the old mongo client
+    mongo_client: database.Database = database.Database()
+    while True:
+        await mongo_client.backup_short_term_memory(bot_memory.memory)
+        sleep_duration = 3 * 3600  # duration in seconds
+        # sleep_duration = 10  # back up every 10 seconds for testing
+        await asyncio.sleep(sleep_duration)
+
+
+# First just periodically send Hi without considering previous messages
+# async def periodic_reachout_task():
+#     while True:
+#         # bot_instance.
+
+#         # Fetch users from the database
+#         users = bot_memory.get_all_users
+#         for user_id in users:
+#             await bot_instance.send_message(user_id, "Hello, it's been a while!")
+
+#             # # Check if you've interacted with the user recently
+#             # # Replace this with actual condition
+#             # if not recently_interacted(user):
+#             #     # If not, send a text
+#             #     # Replace with actual bot's function to send a message
+#             #     await bot.send_message(user.id, "Hello, it's been a while!")
+#         # Wait for a random time between 2 to 6 days before the next iteration
+#         # sleep_duration = random.randint(
+#         #     3 * 24 * 60 * 60, 6 * 24 * 60 * 60
+#         # )  # duration in seconds
+#         sleep_duration = 10  # sleep 10 seconds for testing
+#         await asyncio.sleep(sleep_duration)
+
+
+# TODO: add a function to check if the user has interacted recently and if not delete their short term memory for better performance
+
+
+def start_async_tasks():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(backup_short_term_memory_task())
+    loop.run_forever()
+
 
 async def backup_short_term_memory_task():
     """back up short term memory to db every 6 hours"""
@@ -703,4 +751,5 @@ async def periodic_reachout_task():
 # TODO: add a function to check if the user has interacted recently and if not delete their short term memory for better performance
 
 if __name__ == "__main__":
+    Thread(target=start_async_tasks).start()
     run_bot()
