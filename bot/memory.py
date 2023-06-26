@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from typing import List
 
 import database
 
@@ -74,8 +75,6 @@ class Memory:
             message = self.memory[user_id]["messages"]
             new = message.rsplit("\n", 10)
             if len(new) == 11:
-            new = message.rsplit("\n", 10)
-            if len(new) == 11:
                 self.memory[user_id]["messages"] = new[0]
             else:
                 self.memory[user_id]["messages"] = ""
@@ -95,8 +94,17 @@ class Memory:
             )
         return self.memory[user_id]["messages"]
 
-    def get_all_users(self) -> list[str]:
-        return list(self.memory.keys())
+    def get_all_users(self) -> List[int]:
+        """return a list of all users_id in int"""
+        try:
+            return [
+                int(key)
+                for key in list(self.memory.keys())
+                if key not in ["_id", "inserted_at"]
+            ]
+        except Exception as e:
+            print(f"Fail to convert user_id in str to int {e}")
+            return []
 
     def load_memory_from_db_sync(self) -> dict:
         """
@@ -111,6 +119,7 @@ class Memory:
             memory_from_db: dict = loop.run_until_complete(
                 db.load_short_term_memory_from_db()
             )
+            # TODO: delete this
             print(f"memory loading from db succeeded{memory_from_db}")
             return memory_from_db
         except Exception as e:
