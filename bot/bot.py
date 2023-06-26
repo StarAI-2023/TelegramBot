@@ -670,8 +670,6 @@ def run_bot() -> None:
     # start the bot
     application.run_polling()
 
-    Thread(target=start_async_tasks).start()
-
 
 async def backup_short_term_memory_task():
     """back up short term memory to db every 6 hours"""
@@ -726,26 +724,26 @@ async def backup_short_term_memory_task():
     await asyncio.sleep(sleep_duration)
 
 
-async def periodic_reachout_task():
-    while True:
-        # bot_instance.
+# async def periodic_reachout_task():
+#     while True:
+#         # bot_instance.
 
-        # Fetch users from the database
-        users = (
-            db.get_users()
-        )  # Let's assume get_users() is a function which returns all the users
-        for user in users:
-            # Check if you've interacted with the user recently
-            # Replace this with actual condition
-            if not recently_interacted(user):
-                # If not, send a text
-                # Replace with actual bot's function to send a message
-                await bot.send_message(user.id, "Hello, it's been a while!")
-        # Wait for a random time between 2 to 6 days before the next iteration
-        sleep_duration = random.randint(
-            3 * 24 * 60 * 60, 6 * 24 * 60 * 60
-        )  # duration in seconds
-        await asyncio.sleep(sleep_duration)
+#         # Fetch users from the database
+#         users = (
+#             db.get_users()
+#         )  # Let's assume get_users() is a function which returns all the users
+#         for user in users:
+#             # Check if you've interacted with the user recently
+#             # Replace this with actual condition
+#             if not recently_interacted(user):
+#                 # If not, send a text
+#                 # Replace with actual bot's function to send a message
+#                 await bot.send_message(user.id, "Hello, it's been a while!")
+#         # Wait for a random time between 2 to 6 days before the next iteration
+#         sleep_duration = random.randint(
+#             3 * 24 * 60 * 60, 6 * 24 * 60 * 60
+#         )  # duration in seconds
+#         await asyncio.sleep(sleep_duration)
 
 
 # TODO: add a function to check if the user has interacted recently and if not delete their short term memory for better performance
