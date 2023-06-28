@@ -1,4 +1,4 @@
-telegram_token: "6232825098:AAEHSB5cwayPbxK9XqYi-YdQSktydahWBY8"
+telegram_token: "6196461025:AAFwd3bPlSH0-ncV_WrYEhqEVsnuT573LWE"
 bot_id: "eugenia_bot_1" # each bot needs to have a unique bot id for short term memory backup purpose 
 openai_api_key: "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"
 stripe_token: "350862534:LIVE:NzgwNjJmY2Y2NjFm"
