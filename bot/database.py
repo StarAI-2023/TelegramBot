@@ -116,9 +116,6 @@ class Database:
                 {"$set": short_term_memory},
                 upsert=True,
             )
-            print(
-                f"Successfully backup short_term_memory into database{str(datetime.now())}"
-            )
         except Exception as e:
             print(f"Store_short_term_memory failed with error: {e}")
 
@@ -133,9 +130,6 @@ class Database:
         if result:
             return result
         else:
-            print(
-                "No short_term_memory data found in MongoDB for the given bot_id, return empty dict instead"
-            )
             return {}
 
     def close(self):

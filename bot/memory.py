@@ -120,7 +120,6 @@ class Memory:
                 db.load_short_term_memory_from_db()
             )
             # TODO: delete this
-            print(f"memory loading from db succeeded{memory_from_db}")
             return memory_from_db
         except Exception as e:
             print("Error loading memory from db:", e)
