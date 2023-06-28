@@ -7,7 +7,7 @@ use_chatgpt_api: true
 allowed_telegram_usernames: []  # if empty, the bot is available to anyone. pass a username string to allow it and/or user ids as integers
 
 #available token for new users before they create an account
-available_output_token_new_user: 300
+available_output_token_new_user: 50
 
 return_n_generated_images: 1
 n_chat_modes_per_page: 5
@@ -20,8 +20,8 @@ short_term_memory_backup_key: "EugeniaTelegramBot1ShortTermMemoryLog"
 
 # voice clone
 #playht
-playht_user_id: "lUTFPtLCfiP68Bbw0EV4dVJQD5n2"
-playht_api_key: "a65d351aba794e7fb4d6f17162311025"
+playht_user_id: "gyTn8F180AUIFSgOgeYk9GkJmTd2"
+playht_api_key: "9927e454afe04d5aa462f317974f1cf2"
 
 #pinecone
 pinecone_index_name: "eugenia"
