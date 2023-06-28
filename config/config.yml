@@ -1,4 +1,5 @@
-telegram_token: "6263506155:AAGnxpLAe8EHsQlUhVAFMo-7iboaBbe3ubI"
+telegram_token: "6232825098:AAEHSB5cwayPbxK9XqYi-YdQSktydahWBY8"
+bot_id: "eugenia_bot_1" # each bot needs to have a unique bot id for short term memory backup purpose 
 openai_api_key: "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"
 stripe_token: "350862534:LIVE:NzgwNjJmY2Y2NjFm"
 stripe_token_test: "284685063:TEST:ZjZjMDNkMGE0NmY0" # for Test
@@ -12,6 +13,12 @@ available_output_token_new_user: 300
 return_n_generated_images: 1
 n_chat_modes_per_page: 5
 enable_message_streaming: false  # if set, messages will be shown to user word-by-word
+
+# MongoDB
+mongodb_uri_remote: "mongodb+srv://me:F595YW6HduqCjNyN@cluster0.9gg56ry.mongodb.net/?retryWrites=true&w=majority"
+# mongodb_uri_cluster_1 = "mongodb+srv://will:Wkf0OkXsWcmt10U1@bot.usvocwk.mongodb.net/?retryWrites=true&w=majority"
+# mongodb_uri_cluster_2 = "mongodb+srv://me:F595YW6HduqCjNyN@cluster0.9gg56ry.mongodb.net/?retryWrites=true&w=majority"
+short_term_memory_backup_key: "EugeniaTelegramBot1ShortTermMemoryLog"
 
 # prices
 chatgpt_price_per_1000_tokens: 0.002
@@ -37,7 +44,7 @@ pinecone_chunk_size: 2000
 
 #nodejs server
 node_server_password: "fhawjthaj-hthjerahr234oru0ufhgarp324ytp98ayfpsdayfuh4wiu"
-node_server_url: "https://pinecone-client-7719a66a0ebc.herokuapp.com"
+node_server_url: "https://pinecone-client-7719a66a0ebc.herokuapp.com" 
 
 #celebrity namespace
 celebrity_namespace: "eugeniacooney_telegram_bot"

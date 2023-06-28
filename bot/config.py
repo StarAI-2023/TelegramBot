@@ -14,6 +14,7 @@ config_env = dotenv.dotenv_values(config_dir / "config.env")
 
 # config parameters
 telegram_token = config_yaml["telegram_token"]
+bot_id = config_yaml["bot_id"]
 openai_api_key = config_yaml["openai_api_key"]
 stripe_token = config_yaml["stripe_token"]
 stripe_token_test = config_yaml["stripe_token_test"]
@@ -21,8 +22,8 @@ use_chatgpt_api = config_yaml.get("use_chatgpt_api", True)
 allowed_telegram_usernames = config_yaml["allowed_telegram_usernames"]
 new_dialog_timeout = config_yaml["new_dialog_timeout"]
 n_chat_modes_per_page = config_yaml.get("n_chat_modes_per_page", 5)
-mongodb_uri_remote = "mongodb+srv://will:Wkf0OkXsWcmt10U1@bot.usvocwk.mongodb.net/?retryWrites=true&w=majority"
-mongodb_uri_second = "mongodb+srv://me:F595YW6HduqCjNyN@cluster0.9gg56ry.mongodb.net/?retryWrites=true&w=majority"
+mongodb_uri_remote = config_yaml["mongodb_uri_remote"]
+short_term_memory_backup_key = config_yaml["short_term_memory_backup_key"]
 available_token_new_user = config_yaml["available_output_token_new_user"]
 voice_clone_api_key = config_yaml["playht_api_key"]
 voice_clone_id = config_yaml["playht_user_id"]
