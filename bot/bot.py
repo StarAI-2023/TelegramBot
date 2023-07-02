@@ -180,10 +180,8 @@ async def start_handle(update: Update, context: CallbackContext) -> None:
     await context.bot.send_message(
         chat_id=update.effective_chat.id, text=reply_text, parse_mode=ParseMode.HTML
     )
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id, text=f"Hey {user.first_name}, this is Eugenia, how are you doing!", parse_mode=ParseMode.HTML
-    )
-    # await show_chat_modes_handle(update, context)
+    with open('bot/voice_samples/eugenia_intro.ogg', 'rb') as intro_voice:
+        await context.bot.send_voice(chat_id=update.effective_chat.id, voice=intro_voice)
 
 
 async def help_handle(update: Update, context: CallbackContext):
