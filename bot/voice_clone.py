@@ -23,7 +23,7 @@ class VoiceClone:
             "speed": 1,
             "sample_rate": 24000,
             "text": text,
-            "voice": "s3://mockingbird-prod/eugenia_0a9b31e2-01df-4c8a-800d-1964ee0498be/voices/speaker/manifest.json"
+            "voice": "s3://voice-cloning-zero-shot/4dd4a3e7-5359-42ad-b895-bc0335e55503/eugenia-non-hf/manifest.json"
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(

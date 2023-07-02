@@ -702,7 +702,7 @@ def start_async_tasks():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.create_task(backup_short_term_memory_task())
-    loop.create_task(periodic_reachout_task())
+    # loop.create_task(periodic_reachout_task())
     loop.run_forever()
 
 
