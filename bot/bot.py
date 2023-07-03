@@ -164,7 +164,7 @@ async def successful_payment_handle(update: Update, context: CallbackContext):
     await db.increase_remaining_tokens(
         user_id=user_id,
         tokens_added=successful_payment.total_amount
-        * 300,  # 1 dollar == total amount 100, each dollar 300 tokens
+        * 3,  # 1 dollar == total amount 100, each dollar 300 tokens
     )
 
     await context.bot.send_message(
