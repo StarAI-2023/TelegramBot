@@ -27,7 +27,7 @@ playht_api_key: "9927e454afe04d5aa462f317974f1cf2"
 pinecone_index_name: "eugenia"
 
 #celebrity namespace
-celebrity_namespace: "eugeniacooney_telegram_bot"
+celebrity_namespace: "eugeniacooney_telegram_bot_1" # always use the latest as we might deprecate or use new celebrity_namespace
 
 #nodejs server
 node_server_password: "fhawjthaj-hthjerahr234oru0ufhgarp324ytp98ayfpsdayfuh4wiu"
