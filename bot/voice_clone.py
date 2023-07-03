@@ -8,7 +8,7 @@ class VoiceClone:
     def __init__(self):
         self.api_key = config.voice_clone_api_key
         self.voice_id = config.voice_clone_id
-        self.url = f"https://play.ht/api/v2/tts/stream"
+        self.url = "https://api.play.ht/api/v2/tts/stream"
 
     async def generateVoice(self, text) -> bytes:
         headers = {
@@ -18,7 +18,7 @@ class VoiceClone:
             "X-USER-ID": self.voice_id
         }
         data = {
-            "quality": "premium",
+            "quality": "draft",
             "output_format": "mp3",
             "speed": 1,
             "sample_rate": 24000,

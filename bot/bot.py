@@ -41,7 +41,7 @@ bot_memory: memory.Memory = memory.Memory()
 long_term_memory: long_term.LongTermMemory = long_term.LongTermMemory()
 
 HELP_MESSAGE = """Commands:
-⚪ /deposit – Add credits to you account
+⚪ /deposit – Add money to you account
 ⚪ /delete_memory – Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted
 ⚪ /balance – Show balance
 ⚪ /help – Show help
@@ -115,7 +115,7 @@ def createButton(amounts: list):
 async def deposit_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(update.message.from_user)
 
-    reply_text = "Please choose the amount you want to deposit. For reference, 600 tokens cost $1.\n\n"
+    reply_text = "Payments are securely powered by Stripe. For reference, 300 tokens cost $1, which is approximately 1.5 mins of output. \n\n"
 
     invoice_choice = []
     invoice_choice.append(createButton(["5", "10", "30"]))
@@ -135,7 +135,7 @@ async def send_invoice_handle(update: Update, context: CallbackContext):
     await context.bot.sendInvoice(
         query.message.chat_id,
         title="Deposit",
-        description=f"deposit {invoice_amount} USD to your account",
+        description=f"add {invoice_amount} USD to your account",
         payload="unique invoice id",
         provider_token=config.stripe_token,
         currency="USD",
@@ -572,12 +572,12 @@ async def error_handle(update: Update, context: CallbackContext) -> None:
 async def post_init(application: Application):
     await application.bot.set_my_commands(
         [
+            BotCommand("/deposit", "add money to your account"),   
             BotCommand(
                 "/delete_memory",
                 "Clear memory of our last 10 messages. Keep in mind that I will not remember those conversations once deleted",
             ),
             BotCommand("/balance", "Show balance"),
-            BotCommand("/deposit", "deposit to your account"),
             BotCommand("/help", "Show help message"),
             BotCommand("/policy", "view our Terms of Use & Privacy Policy"),
         ]
