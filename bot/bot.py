@@ -199,6 +199,9 @@ async def delete_memory_handle(update: Update, context: CallbackContext):
     await register_user_if_not_exists(user)
     async with user_semaphores[user.id]:
         bot_memory.delete_memory(user_id=user.id)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text="Memory successfully deleted"
+    )
 
 
 async def help_group_chat_handle(update: Update, context: CallbackContext):
