@@ -47,7 +47,7 @@ HELP_MESSAGE = """Commands:
 ⚪ /help – Show help
 ⚪ /policy – view our Terms of Use & Privacy Policy
 
-🎤 You can send <b>Voice Messages</b> instead of text
+🎤 You can send <b>Voice Messages</b> instead of text!
 
 """
 
